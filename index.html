@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Dark Farm</title>
+    <!-- Официальный скрипт Adsgram SDK -->
+    <script src="https://adsgram.ai"></script>
+    <style>
+        body {
+            background-color: #121212;
+            color: #e0e0e0;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            margin: 0;
+            padding: 15px;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .header {
+            background: linear-gradient(145deg, #1e1e1e, #161616);
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            margin-bottom: 20px;
+            border: 1px solid #2d2d2d;
+        }
+        .balance-container {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 10px;
+        }
+        .balance-item {
+            font-size: 16px;
+            font-weight: bold;
+            background: #262626;
+            padding: 8px 15px;
+            border-radius: 8px;
+            border: 1px solid #3d3d3d;
+        }
+        .farm-container {
+            background: #1a1a1a;
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid #252525;
+            margin-bottom: 20px;
+        }
+        .grid {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+        .plot {
+            width: 100px;
+            height: 100px;
+            background-color: #3e2723;
+            border: 3px solid #5d4037;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: bold;
+            transition: all 0.2s ease;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+        }
+        .plot.growing {
+            background-color: #558b2f;
+            border-color: #689f38;
+        }
+        .plot.ready {
+            background-color: #fbc02d;
+            border-color: #f57f17;
+            color: #000;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.03); }
+            100% { transform: scale(1); }
+        }
+        .actions {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .btn {
+            background: #2e7d32;
+            color: white;
+            border: none;
+            padding: 14px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 10px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            transition: background 0.2s;
+        }
+        .btn:active { transform: scale(0.98); }
+        .btn-ad { background: #0288d1; }
+        .btn-ad:shadow { box-shadow: 0 4px 10px rgba(2,136,209,0.4); }
+        .btn-upgrade { background: #ef6c00; }
+        .btn:disabled { background: #444; color: #888; cursor: not-allowed; transform: none; box-shadow: none; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h2 style="margin:0; color:#fff;">🌾 Dark Farm</h2>
+        <div class="balance-container">
+            <div class="balance-item">🟡 Монеты: <span id="coins-val">0</span></div>
+            <div class="balance-item">💎 Кристаллы: <span id="crystals-val">0</span></div>
+        </div>
+        <div style="margin-top: 12px; font-size: 15px;">Амбар: <span id="wheat-val">0</span> / 50 🌾</div>
+    </div>
+
+    <div class="farm-container">
+        <h3 style="margin:0 0 10px 0; color:#a5d6a7;">Ваше поле:</h3>
+        <div class="grid">
+            <div id="plot-1" class="plot" onclick="handlePlotClick(1)">Пусто<br>(Клик)</div>
+            <div id="plot-2" class="plot" style="display:none;" onclick="handlePlotClick(2)">Пусто<br>(Клик)</div>
+        </div>
+    </div>
+
+    <div class="actions">
+        <button class="btn" onclick="sellAllWheat()">Продать всю пшеницу (1 🌾 = 10 🟡)</button>
+        <button class="btn btn-ad" onclick="watchAdsgramVideo()">Посмотреть рекламу (+1 💎)</button>
+        <button class="btn btn-upgrade" id="upgrade-btn" onclick="buySecondPlot()">Купить 2-ю грядку (100 🟡 или 1 💎)</button>
+    </div>
+
+    <script>
+        // Игровое состояние экономики
+        let coins = 0;
+        let crystals = 0;
+        let wheat = 0;
+        let hasSecondPlot = false;
+
+        // Состояние грядок: "empty" (пусто), "growing" (растет), "ready" (созрело)
+        let plotsState = {
+            1: { status: "empty", timer: null, timeLeft: 0 },
+            2: { status: "empty", timer: null, timeLeft: 0 }
+        };
+
+        const GROW_TIME = 5; // Время роста пшеницы в секундах
+
+        // Функция обновления интерфейса
+        function updateUI() {
+            document.getElementById("coins-val").innerText = coins;
+            document.getElementById("crystals-val").innerText = crystals;
+            document.getElementById("wheat-val").innerText = wheat;
+
+            // Показываем вторую грядку после ее официальной покупки
+            if (hasSecondPlot) {
+                document.getElementById("plot-2").style.display = "flex";
+                document.getElementById("upgrade-btn").style.display = "none";
+            }
+        }
+
+        // Логика клика по грядке (Посадка / Сбор урожая)
+        function handlePlotClick(plotId) {
+            let plot = plotsState[plotId];
+            let plotEl = document.getElementById(`plot-${plotId}`);
+
+            if (plot.status === "empty") {
+                // Запуск процесса роста
+                plot.status = "growing";
+                plot.timeLeft = GROW_TIME;
+                plotEl.className = "plot growing";
+                plotEl.innerHTML = `Рост...<br>${plot.timeLeft}с`;
+
+                plot.timer = setInterval(() => {
+                    plot.timeLeft--;
+                    if (plot.timeLeft > 0) {
+                        plotEl.innerHTML = `Рост...<br>${plot.timeLeft}с`;
+                    } else {
+                        clearInterval(plot.timer);
+                        plot.status = "ready";
+                        plotEl.className = "plot ready";
+                        plotEl.innerHTML = "СОЗРЕЛО!<br>(Собрать)";
+                    }
+                }, 1000);
+
+            } else if (plot.status === "ready") {
+                // Логика сбора ресурсов в амбар
+                if (wheat >= 50) {
+                    alert("Амбар заполнен! Продайте пшеницу.");
+                    return;
+                }
+                plot.status = "empty";
+                plotEl.className = "plot";
+                plotEl.innerHTML = "Пусто<br>(Клик)";
+                wheat++;
+                updateUI();
+            }
+        }
+
+        // Продажа ресурсов
+        function sellAllWheat() {
+            if (wheat > 0) {
+                coins += wheat * 10;
+                alert(`Вы успешно продали ${wheat} 🌾 и получили ${wheat * 10} 🟡!`);
+                wheat = 0;
+                updateUI();
+            } else {
+                alert("У вас нет пшеницы на продажу!");
+            }
+        }
+
+        // Покупка новой грядки (Автоматическая доплата кристаллами)
+        function buySecondPlot() {
+            if (hasSecondPlot) return;
+
+            if (coins >= 100) {
+                coins -= 100;
+                hasSecondPlot = true;
+                updateUI();
+                alert("Поздравляем! Вы открыли новую грядку за монеты!");
+            } else if (crystals >= 1) {
+                if (confirm("Не хватает монет. Хотите открыть новую грядку за 1 💎?")) {
+                    crystals -= 1;
+                    hasSecondPlot = true;
+                    updateUI();
+                    alert("Поздравляем! Вы открыли новую грядку за Кристаллы!");
+                }
+            } else {
+                alert("Не хватает ресурсов! Требуется 100 🟡 или 1 💎. Вы можете получить Кристаллы за просмотр рекламы.");
+            }
+        }
+
+        // Официальный защищенный плеер Adsgram
+        function watchAdsgramVideo() {
+            if (window.AdsGram) {
+                const AdController = window.AdsGram.init({ blockId: "42181" });
+                
+                AdController.show().then((result) => {
+                    crystals += 1;
+                    updateUI();
+                    alert("Успешно! Вам начислен 1 💎");
+                }).catch((result) => {
+                    alert("Рекламный ролик не был досмотрен до конца.");
+                });
+            } else {
+                // Если реклама не загрузилась (AdBlock/сбой сети) — СТРОГО ноль начислений
+                alert("Не удалось загрузить рекламу. Проверьте подключение к интернету или отключите блокировщик рекламы.");
+            }
+        }
+
+        // Инициализация при старте
+        updateUI();
+    </script>
+</body>
+</html>
