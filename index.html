@@ -339,6 +339,35 @@ function handlePlotClick(plotId) {
             }
         }
 
+    р// --- СИСТЕМА АВТОСОХРАНЕНИЯ ПРОГРЕССА ---
+        function saveGameProgress() {
+            const gameData = {
+                coins: coins,
+                crystals: crystals,
+                wheat: wheat,
+                hasSecondPlot: hasSecondPlot
+            };
+            localStorage.setItem("dark_farm_save", JSON.stringify(gameData));
+        }
+
+        function loadGameProgress() {
+            const savedData = localStorage.getItem("dark_farm_save");
+            if (savedData) {
+                const data = JSON.parse(savedData);
+                coins = data.coins || 0;
+                crystals = data.crystals || 0;
+                wheat = data.wheat || 0;
+                hasSecondPlot = data.hasSecondPlot || false;
+            }
+        }
+
+        const originalUpdateUI = updateUI;
+        updateUI = function() {
+            originalUpdateUI();
+            saveGameProgress();
+        };
+
+        loadGameProgress();
         updateUI();
     </script>
 </body>
