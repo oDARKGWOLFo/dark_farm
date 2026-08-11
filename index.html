@@ -18,7 +18,7 @@
             width: 100%;
             height: 100%;
             overflow: hidden;
-            background-color: #1e3512;
+            background-color: #1a2e10;
             font-family: Arial, sans-serif;
         }
 
@@ -29,7 +29,6 @@
             overflow: hidden;
         }
 
-        /* Камера перемещения (Drag) */
         #camera-pan {
             position: absolute;
             width: 0;
@@ -39,14 +38,13 @@
             will-change: transform;
         }
 
-        /* Камера приближения (Zoom) */
         #camera-zoom {
             width: 0;
             height: 0;
             will-change: transform;
         }
 
-        /* Изометрическая 3D-карта (100 блоков по 40px = 4000px) */
+        /* Изометрическая 3D-карта 100х100 блоков (4000px) */
         #game-map {
             position: absolute;
             width: 4000px;
@@ -54,7 +52,7 @@
             left: -2000px;
             top: -2000px;
             
-            /* Светло-зелёная шахматная трава как в Hay Day */
+            /* Светло-зелёная шахматная трава */
             background-color: #7cd13d;
             background-image: 
                 linear-gradient(45deg, #86db46 25%, transparent 25%, transparent 75%, #86db46 75%, #86db46),
@@ -62,146 +60,56 @@
             background-size: 80px 80px;
             background-position: 0 0, 40px 40px;
 
-            /* Наклон всей карты в 3D изометрию */
-            transform: rotateX(60deg) rotateZ(45deg);
+            /* ИЗМЕНЕНО: Поворот на -45 градусов разворачивает карту СПРАВА НАЛЕВО */
+            transform: rotateX(60deg) rotateZ(-45deg);
             transform-style: preserve-3d;
         }
 
-        /* Трёхмерная дорога, идущая по диагонали вдоль сетки блоков */
+        /* Трёхмерная дорога, идущая ровно ВНИЗ от центра (вдоль оси Y карты) */
         .dirt-road {
             position: absolute;
-            top: 1960px; /* По центру карты */
-            left: 0;
-            width: 4000px;
-            height: 80px; /* Ширина дороги в 2 блока */
-            background: #d0a46c;
-            border-top: 3px solid #b0844c;
-            border-bottom: 3px solid #b0844c;
-            box-shadow: inset 0 0 15px rgba(92, 64, 51, 0.4);
+            top: 2000px;         /* Начинается ровно от центра, где стоит дом */
+            left: 1960px;        /* Выровнена по центру по ширине */
+            width: 80px;         /* Ширина в 2 блока */
+            height: 2000px;      /* Тянется от дома до самого низа карты */
+            
+            /* Качественная текстура грунтовой дороги */
+            background-image: url('https://freepik.com');
+            background-size: 80px 200px;
+            border-left: 4px solid #6e4720;
+            border-right: 4px solid #6e4720;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.5);
             z-index: 1;
         }
 
-        /* Контейнер для вертикальных объектов (Дом) */
+        /* Контейнер для вертикальных объектов (Дом развернут под новый угол) */
         .iso-object {
             position: absolute;
             transform-style: preserve-3d;
-            transform: rotateZ(-45deg) rotateX(-60deg);
+            /* Разворот скорректирован под новый угол карты (-45) */
+            transform: rotateZ(45deg) rotateX(-60deg);
             transform-origin: bottom center;
         }
 
-        /* Позиция дома у обочины дороги */
+        /* Точное расположение дома над дорогой */
         .house-position {
-            top: 1900px;
-            left: 2000px;
-            width: 160px;
-            height: 140px;
+            top: 1820px;         /* Стоит чуть выше начала дороги */
+            left: 1910px;        /* Выровнен по центру дороги */
+            width: 180px;        
+            height: 180px;
             z-index: 10;
         }
 
-        /* --- ОБЪЁМНЫЙ ДОМ --- */
-        .farm-house {
-            position: relative;
+        /* Качественный 3D-спрайт дома */
+        .farm-house-sprite {
             width: 100%;
             height: 100%;
-        }
-
-        .house-body {
-            position: absolute;
-            bottom: 0;
-            left: 10px;
-            width: 90px;
-            height: 70px;
-            background: linear-gradient(to bottom, #d9a05b, #b37d42);
-            border: 3px solid #3d2516;
-            box-shadow: -5px 10px 20px rgba(0,0,0,0.3);
-            z-index: 4;
-        }
-
-        .house-side {
-            position: absolute;
-            bottom: 0;
-            left: 97px;
-            width: 50px;
-            height: 70px;
-            background: linear-gradient(to bottom, #b37d42, #885c2b);
-            border: 3px solid #3d2516;
-            border-left: none;
-            transform: skewY(-15deg);
-            transform-origin: top left;
-            z-index: 3;
-        }
-
-        .house-roof-front {
-            position: absolute;
-            top: 30px;
-            left: 0;
-            width: 110px;
-            height: 43px;
-            background: linear-gradient(135deg, #e63946, #b71c1c);
-            border: 3px solid #3d2516;
-            clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
-            z-index: 6;
-        }
-
-        .house-roof-side {
-            position: absolute;
-            top: 30px;
-            left: 102px;
-            width: 54px;
-            height: 43px;
-            background: linear-gradient(to bottom, #b71c1c, #7f1010);
-            border: 3px solid #3d2516;
-            border-left: none;
-            clip-path: polygon(0% 0%, 100% 34%, 100% 100%, 0% 100%);
-            transform: skewY(-15deg);
-            transform-origin: top left;
-            z-index: 5;
-        }
-
-        .roof-window {
-            position: absolute;
-            top: 20px;
-            left: 44px;
-            width: 22px;
-            height: 22px;
-            background: #a2d2ff;
-            border: 2.5px solid #3d2516;
-            border-radius: 50%;
-            z-index: 7;
-        }
-
-        .house-door {
-            position: absolute;
-            bottom: 0;
-            left: 32px;
-            width: 24px;
-            height: 40px;
-            background: #fdfefe;
-            border: 2.5px solid #3d2516;
-            border-bottom: none;
-            border-radius: 4px 4px 0 0;
-        }
-
-        .house-window-front {
-            position: absolute;
-            bottom: 22px;
-            left: 64px;
-            width: 18px;
-            height: 18px;
-            background: #a2d2ff;
-            border: 2.5px solid #3d2516;
-            border-radius: 3px;
-        }
-
-        .house-chimney {
-            position: absolute;
-            top: 12px;
-            left: 85px;
-            width: 14px;
-            height: 32px;
-            background: linear-gradient(90deg, #7b7b7b, #535353);
-            border: 2.5px solid #3d2516;
-            z-index: 2;
+            background-image: url('https://uncyc.org');
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: bottom center;
+            filter: drop-shadow(-10px 15px 10px rgba(0,0,0,0.4));
+            cursor: pointer;
         }
     </style>
 </head>
@@ -212,22 +120,12 @@
             <div id="camera-zoom">
                 <div id="game-map">
                     
-                    <!-- Дорога в плоскости 3D поля -->
+                    <!-- Дорога, уходящая от дома вниз-влево по экрану -->
                     <div class="dirt-road"></div>
 
-                    <!-- Объёмный 3D дом -->
+                    <!-- Качественный 3D дом из спрайта -->
                     <div class="iso-object house-position">
-                        <div class="farm-house">
-                            <div class="house-chimney"></div>
-                            <div class="house-roof-front"></div>
-                            <div class="house-roof-side"></div>
-                            <div class="roof-window"></div>
-                            <div class="house-body">
-                                <div class="house-door"></div>
-                                <div class="house-window-front"></div>
-                            </div>
-                            <div class="house-side"></div>
-                        </div>
+                        <div class="farm-house-sprite"></div>
                     </div>
 
                 </div>
@@ -239,8 +137,8 @@
         const panContainer = document.getElementById('camera-pan');
         const zoomContainer = document.getElementById('camera-zoom');
 
-        // Стартовая позиция (дом в центре экрана)
-        let currentX = 0, currentY = -100; 
+        // Центрируем камеру на доме при старте
+        let currentX = 0, currentY = -50; 
         let currentZoom = 0.8;
 
         const MIN_ZOOM = 0.4;
@@ -256,7 +154,6 @@
             zoomContainer.style.transform = `scale(${currentZoom})`;
         }
 
-        // ПРАВИЛЬНАЯ функция подсчета расстояния между пальцами
         function getPinchDistance(e) {
             if (e.touches.length < 2) return 0;
             const t1 = e.touches[0];
@@ -269,8 +166,8 @@
         window.addEventListener('touchstart', (e) => {
             if (e.touches.length === 1) {
                 isDragging = true;
-                startX = e.touches[0].clientX - currentX;
-                startY = e.touches[0].clientY - currentY;
+                startX = e.touches.clientX - currentX;
+                startY = e.touches.clientY - currentY;
             } else if (e.touches.length === 2) {
                 isDragging = false;
                 startPinchDist = getPinchDistance(e);
@@ -280,10 +177,10 @@
 
         window.addEventListener('touchmove', (e) => {
             if (isDragging && e.touches.length === 1) {
-                currentX = e.touches[0].clientX - startX;
-                currentY = e.touches[0].clientY - startY;
+                currentX = e.touches.clientX - startX;
+                currentY = e.touches.clientY - startY;
                 
-                // Рамки, чтобы не перетаскивать карту в бесконечную пустоту
+                // Ограничения перемещения
                 currentX = Math.min(1200, Math.max(currentX, -1200));
                 currentY = Math.min(1200, Math.max(currentY, -1200));
                 
@@ -304,8 +201,8 @@
                 isDragging = false;
             } else if (e.touches.length === 1) {
                 isDragging = true;
-                startX = e.touches[0].clientX - currentX;
-                startY = e.touches[0].clientY - currentY;
+                startX = e.touches.clientX - currentX;
+                startY = e.touches.clientY - currentY;
             }
         });
 
