@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Моя Ферма</title>
+    <title>Dark Farm</title>
     <style>
-        /* Сброс стандартных стилей браузера */
+        /* Базовые настройки экрана */
         * {
             box-sizing: border-box;
             margin: 0;
@@ -19,11 +19,10 @@
             width: 100%;
             height: 100%;
             overflow: hidden;
-            background-color: #111;
+            background-color: #1a1a1a;
             font-family: Arial, sans-serif;
         }
 
-        /* Экран телефона (Окно, через которое мы видим карту) */
         #viewport {
             width: 100%;
             height: 100%;
@@ -31,91 +30,195 @@
             overflow: hidden;
         }
 
-        /* Игровая карта (Большое поле, которое можно двигать) */
+        /* Карта фермы (100 блоков по 32px = 3200px) */
         #game-map {
-            width: 1500px;
-            height: 1500px;
+            width: 3200px;
+            height: 3200px;
             position: absolute;
             
-            /* Красивый сочный зеленый газон с эффектом травы */
-            background-color: #2e5c1e;
+            /* Светло-зеленый сочный цвет травы как в Hay Day */
+            background-color: #72b243;
+            
+            /* Текстура аккуратной блочной сетки 100х100 */
             background-image: 
-                radial-gradient(#3a6f28 15%, transparent 16%),
-                radial-gradient(#3a6f28 15%, transparent 16%);
-            background-size: 60px 60px;
-            background-position: 0 0, 30px 30px;
+                linear-gradient(to right, rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+            background-size: 32px 32px;
             
-            /* Мягкая внутренняя тень по краям карты для реалистичности */
-            box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.5);
-            
-            /* Плавный запуск координат */
-            transform: translate3d(-350px, -350px, 0);
+            /* Смещение в центр при старте */
+            transform: translate3d(-1400px, -1400px, 0);
             will-change: transform;
         }
 
-        /* Временная разметка центра карты, чтобы видеть движение */
-        .map-center {
+        /* Грунтовая дорога, идущая от центра вниз */
+        .dirt-road {
+            position: absolute;
+            top: 50%;
+            left: calc(50% - 16px); /* Ширина в 1 блок сетки */
+            width: 32px;
+            height: 400px; /* Тянется вниз от дома */
+            background-color: #d2b48c;
+            /* Эффект вытоптанной земли по краям дороги */
+            box-shadow: inset 0 0 8px rgba(92, 64, 51, 0.3), 0 0 4px rgba(114, 178, 67, 0.5);
+            z-index: 1;
+        }
+
+        /* Качественный фермерский дом в стиле Hay Day */
+        .farm-house {
             position: absolute;
             top: 50%;
             left: 50%;
-            transform: translate(-50%, -50%);
-            color: rgba(255, 255, 255, 0.2);
-            font-size: 24px;
-            border: 2px dashed rgba(255, 255, 255, 0.2);
-            padding: 20px;
-            border-radius: 10px;
+            transform: translate(-50%, -100%); /* Ставим ровно основанием в центр */
+            width: 128px;  /* Размер 4х4 блока */
+            height: 110px;
+            z-index: 2;
+            cursor: pointer;
+        }
+
+        /* Стены дома (Уютное дерево) */
+        .house-body {
+            position: absolute;
+            bottom: 0;
+            left: 14px;
+            width: 100px;
+            height: 65px;
+            background: linear-gradient(#e0c090, #c8a070);
+            border: 3px solid #5c4033;
+            border-radius: 4px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+        }
+
+        /* Красная фермерская крыша */
+        .house-roof {
+            position: absolute;
+            top: 15px;
+            left: 4px;
+            width: 120px;
+            height: 40px;
+            background: linear-gradient(135deg, #cc3333, #991111);
+            border: 3px solid #5c4033;
+            clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
+        }
+
+        /* Чердачное круглое окошко */
+        .roof-window {
+            position: absolute;
+            top: 22px;
+            left: 54px;
+            width: 20px;
+            height: 20px;
+            background: #90caf9;
+            border: 2px solid #5c4033;
+            border-radius: 50%;
+        }
+
+        /* Крыльцо и белая дверь по центру, смотрящая на дорогу */
+        .house-door {
+            position: absolute;
+            bottom: 0;
+            left: 48px;
+            width: 24px;
+            height: 38px;
+            background: #fff;
+            border: 2px solid #5c4033;
+            border-bottom: none;
+            border-radius: 4px 4px 0 0;
+        }
+
+        /* Окна на первом этаже */
+        .house-window {
+            position: absolute;
+            bottom: 20px;
+            width: 18px;
+            height: 18px;
+            background: #90caf9;
+            border: 2px solid #5c4033;
+            border-radius: 3px;
+        }
+        .win-left { left: 20px; }
+        .win-right { right: 20px; }
+
+        /* Труба на крыше */
+        .house-chimney {
+            position: absolute;
+            top: 10px;
+            right: 25px;
+            width: 12px;
+            height: 25px;
+            background: #737373;
+            border: 2px solid #5c4033;
         }
     </style>
 </head>
 <body>
 
-    <!-- Окно просмотра -->
     <div id="viewport">
-        <!-- Игровая карта -->
         <div id="game-map">
-            <div class="map-center">Центр фермы</div>
-            <!-- Сюда в следующих шагах мы будем добавлять грядки, амбар и курятник -->
+            
+            <!-- Дорога вниз -->
+            <div class="dirt-road"></div>
+
+            <!-- Фермерский дом -->
+            <div class="farm-house">
+                <div class="house-chimney"></div>
+                <div class="house-roof"></div>
+                <div class="roof-window"></div>
+                <div class="house-body">
+                    <div class="house-window win-left"></div>
+                    <div class="house-door"></div>
+                    <div class="house-window win-right"></div>
+                </div>
+            </div>
+
         </div>
     </div>
 
     <script>
-        // Инициализация координат (карта сразу центрирована)
         const viewport = document.getElementById('viewport');
         const map = document.getElementById('game-map');
 
         let isDragging = false;
         let startX = 0, startY = 0;
-        let currentX = -350, currentY = -350;
+        // Стартовое смещение, чтобы дом оказался ровно по центру экрана мобильного
+        let currentX = -(1600 - window.innerWidth / 2);
+        let currentY = -(1600 - window.innerHeight / 2);
 
-        // Касание пальцем экрана
+        // Установка начальной позиции
+        map.style.transform = `translate3d(${currentX}px, ${currentY}px, 0)`;
+
         viewport.addEventListener('touchstart', (e) => {
             isDragging = true;
-            startX = e.touches[0].clientX - currentX;
-            startY = e.touches[0].clientY - currentY;
+            startX = e.touches.clientX - currentX;
+            startY = e.touches.clientY - currentY;
         }, { passive: true });
 
-        // Движение пальца по экрану
         viewport.addEventListener('touchmove', (e) => {
             if (!isDragging) return;
 
-            currentX = e.touches[0].clientX - startX;
-            currentY = e.touches[0].clientY - startY;
+            currentX = e.touches.clientX - startX;
+            currentY = e.touches.clientY - startY;
 
-            // Рассчитываем жесткие границы, чтобы карта не улетала за экран
-            const minX = viewport.clientWidth - 1500;
-            const minY = viewport.clientHeight - 1500;
+            // Границы, чтобы не выходить за пределы поля 100х100
+            const minX = viewport.clientWidth - 3200;
+            const minY = viewport.clientHeight - 3200;
 
-            // Ограничиваем движение (0 — верхний/левый край, min — нижний/правый край)
             currentX = Math.min(0, Math.max(currentX, minX));
             currentY = Math.min(0, Math.max(currentY, minY));
 
-            // Плавное перемещение карты через аппаратное ускорение телефона
             map.style.transform = `translate3d(${currentX}px, ${currentY}px, 0)`;
         }, { passive: true });
 
-        // Палец подняли с экрана
         viewport.addEventListener('touchend', () => {
             isDragging = false;
+        });
+
+        // Коррекция центра при повороте экрана смартфона
+        window.addEventListener('resize', () => {
+            const minX = viewport.clientWidth - 3200;
+            const minY = viewport.clientHeight - 3200;
+            currentX = Math.min(0, Math.max(currentX, minX));
+            currentY = Math.min(0, Math.max(currentY, minY));
+            map.style.transform = `translate3d(${currentX}px, ${currentY}px, 0)`;
         });
     </script>
 </body>
