@@ -257,7 +257,7 @@
             }
         }
 
-        function handlePlotClick(plotId) {
+function handlePlotClick(plotId) {
             let plot = plotsState[plotId];
             let plotEl = document.getElementById(`plot-${plotId}`);
 
@@ -269,7 +269,15 @@
 
                 plot.timer = setInterval(() => {
                     plot.timeLeft--;
-}, 1000);
+                    if (plot.timeLeft > 0) {
+                        plotEl.innerHTML = `Рост...<br>${plot.timeLeft}с`;
+                    } else {
+                        clearInterval(plot.timer);
+                        plot.status = "ready";
+                        plotEl.className = "plot ready";
+                        plotEl.innerHTML = "СОЗРЕЛО!<br>(Собрать)";
+                    }
+                }, 1000);
 
             } else if (plot.status === "ready") {
                 if (wheat >= 50) {
@@ -282,7 +290,7 @@
                 wheat++;
                 updateUI();
             }
-        }
+                }
 
         function sellAllWheat() {
             if (wheat > 0) {
