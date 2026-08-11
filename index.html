@@ -175,134 +175,178 @@
     </div>
 
     <script>
-        let coins = 1000;
-        let crystals = 0;
-        let wheat = 0;
-        let isTerritoryBought = false;
-        let plotStatus = "empty";
-        let growTimer = null;
-        let timeLeft = 0;
+// --- ИГРОВЫЕ ПЕРЕМЕННЫЕ ---
+let coins = 1000; // Стартовые монеты (поменяй на 450, если нужно как на скрине)
+let crystals = 0;
+let wheat = 0;
+let isTerritoryBought = false; // Куплен ли курятник/территория
+let plotStatus = "empty";
+let growTimer = null;
+let timeLeft = 0;
 
-        const viewport = document.getElementById('viewport');
-        const map = document.getElementById('game-map');
-        let isDragging = false;
-        let startX, startY;
-        let currentX = -400, currentY = -400;
+// --- ССЫЛКИ НА ЭЛЕМЕНТЫ ЭКРАНА ---
+const viewport = document.getElementById('viewport');
+const map = document.getElementById('game-map');
+const conveyorBelt = document.querySelector('.conveyor-belt'); // Сама лента
+const movingWheat = document.querySelector('.moving-wheat');   // Колосок на ленте
 
-        viewport.addEventListener('touchstart', (e) => {
-            isDragging = true;
-            startX = e.touches.clientX - currentX;
-            startY = e.touches.clientY - currentY;
-        }, { passive: true });
+let isDragging = false;
+let startX, startY;
+let currentX = -400, currentY = -400;
 
-        viewport.addEventListener('touchmove', (e) => {
-            if (!isDragging) return;
-            currentX = e.touches.clientX - startX;
-            currentY = e.touches.clientY - startY;
-            currentX = Math.min(0, Math.max(currentX, viewport.clientWidth - 1500));
-            currentY = Math.min(0, Math.max(currentY, viewport.clientHeight - 1500));
-            map.style.transform = `translate3d(${currentX}px, ${currentY}px, 0)`;
-        }, { passive: true });
+// --- ЛОГИКА ДВИЖЕНИЯ КАРТЫ (Твоя оригинальная) ---
+viewport.addEventListener('touchstart', (e) => {
+    isDragging = true;
+    startX = e.touches[0].clientX - currentX;
+    startY = e.touches[0].clientY - currentY;
+}, { passive: true });
 
-        viewport.addEventListener('touchend', () => { isDragging = false; });
+viewport.addEventListener('touchmove', (e) => {
+    if (!isDragging) return;
+    currentX = e.touches[0].clientX - startX;
+    currentY = e.touches[0].clientY - startY;
+    
+    // Ограничение границ карты
+    currentX = Math.min(0, Math.max(currentX, viewport.clientWidth - 1500));
+    currentY = Math.min(0, Math.max(currentY, viewport.clientHeight - 1500));
+    
+    map.style.transform = `translate3d(${currentX}px, ${currentY}px, 0)`;
+}, { passive: true });
 
-        function updateUI() {
-            document.getElementById("coins-val").innerText = coins;
-            document.getElementById("crystals-val").innerText = crystals;
-            document.getElementById("wheat-val").innerText = wheat;
-            if (isTerritoryBought) {
-                document.getElementById("card-territory").style.display = "none";
-                document.getElementById("actual-plot").style.display = "flex";
-            }
-            saveGameProgress();
-        }
+viewport.addEventListener('touchend', () => { isDragging = false; });
 
-        function buyTerritory() {
-            if (coins >= 1000) {
-                coins -= 1000;
-                isTerritoryBought = true;
-                document.getElementById("dialog-text").innerText = "Отлично! Теперь нажми на грядку, чтобы посадить пшеницу.";
-                updateUI();
-            } else {
-                alert("Не хватает монет!");
-            }
-        }
+// --- ФУНКЦИЯ ОБНОВЛЕНИЯ ЭКРАНА ---
+function updateUI() {
+    document.getElementById("crystals-val").innerText = crystals;
+    document.getElementById("coins-val").innerText = coins;
+    document.getElementById("wheat-val").innerText = wheat;
+    
+    // Если территория (курятник) куплена
+    if (isTerritoryBought) {
+        document.getElementById("card-territory").style.display = "none"; // Прячем карточку покупки
+        document.getElementById("actual-plot").style.display = "flex";     // Показываем грядку
+        
+        // Показываем конвейер и запускаем его анимацию движения
+        if (conveyorBelt) conveyorBelt.style.display = "flex";
+        if (movingWheat) movingWheat.style.display = "block"; 
+    } else {
+        // Если еще не купили — прячем грядку и конвейер
+        document.getElementById("actual-plot").style.display = "none";
+        if (conveyorBelt) conveyorBelt.style.display = "none";
+        if (movingWheat) movingWheat.style.display = "none";
+    }
+    saveGameProgress();
+}
 
-        function handlePlotClick() {
-            let plotEl = document.getElementById("actual-plot");
-            if (plotStatus === "empty") {
-                plotStatus = "growing";
-                timeLeft = 5;
-                plotEl.className = "plot growing";
-                plotEl.innerHTML = `Рост...<br>${timeLeft}с`;
-                growTimer = setInterval(() => {
-                    timeLeft--;
-                    if (timeLeft > 0) {
-                        plotEl.innerHTML = `Рост...<br>${timeLeft}с`;
-                    } else {
-                        clearInterval(growTimer);
-                        plotStatus = "ready";
-                        plotEl.className = "plot ready";
-                        plotEl.innerHTML = "СОЗРЕЛО!<br>(Собрать)";
-                    }
-                }, 1000);
-            } else if (plotStatus === "ready") {
-                plotStatus = "empty";
-                plotEl.className = "plot";
-                plotEl.innerHTML = "Пусто<br>(Клик)";
-                wheat++;
-                document.getElementById("dialog-text").innerText = "Урожай в амбаре! Нажми на Амбар справа, чтобы продать его.";
-                updateUI();
-            }
-        }
-
-        function sellWheat() {
-            if (wheat > 0) {
-                coins += wheat * 50;
-                alert(`Вы продали пшеницу на сумму ${wheat * 50} 🟡!`);
-                wheat = 0;
-                updateUI();
-            } else {
-                alert("Амбар пуст!");
-            }
-        }
-
-        function watchAdsgramVideo() {
-            if (window.AdsGram) {
-                const AdController = window.AdsGram.init({ blockId: "42181" });
-                AdController.show().then(() => {
-                    crystals += 1;
-                    updateUI();
-                    alert("Успешно! Вы получили 1 💎");
-                }).catch(() => {
-                    alert("Реклама не была досмотрена.");
-                });
-            } else {
-                alert("Рекламная сеть недоступна.");
-            }
-        }
-
-        // --- ГАРАНТИРОВАННОЕ РАБОЧЕЕ СОХРАНЕНИЕ ДЛЯ ТЕСТОВ ---
-        function saveGameProgress() {
-            const gameData = { coins, crystals, wheat, isTerritoryBought };
-            localStorage.setItem("dark_farm_local", JSON.stringify(gameData));
-        }
-
-        function loadGameProgress() {
-            const savedData = localStorage.getItem("dark_farm_local");
-            if (savedData) {
-                try {
-                    const data = JSON.parse(savedData);
-                    coins = data.coins ?? 1000;
-                    crystals = data.crystals ?? 0;
-                    wheat = data.wheat ?? 0;
-                    isTerritoryBought = data.isTerritoryBought ?? false;
-                } catch (e) {}
-            }
-        }
-
-        loadGameProgress();
+// --- ФУНКЦИЯ ПОКУПКИ ТЕРРИТОРИИ (КУРЯТНИКА) ---
+function buyTerritory() {
+    let cost = 1000; // Поменяй на 5000, если хочешь усложнить игру
+    
+    if (coins >= cost) {
+        coins -= cost;
+        isTerritoryBought = true;
+        document.getElementById("dialog_text").innerText = "Отлично! Теперь нажми на грядку, чтобы посадить пшеницу.";
         updateUI();
+    } else {
+        alert("Не хватает монет!");
+    }
+}
+
+// --- ЛОГИКА ГРЯДКИ (Посадка, Рост, Сбор) ---
+function handlePlotClick() {
+    let plotEl = document.getElementById("actual-plot");
+    
+    if (plotStatus === "empty") {
+        plotStatus = "growing";
+        timeLeft = 5; // Пшеница растет 5 секунд
+        
+        plotEl.className = "plot growing";
+        plotEl.innerHTML = `Растет...<br>⏳ ${timeLeft}с`;
+        
+        growTimer = setInterval(() => {
+            timeLeft--;
+            if (timeLeft > 0) {
+                plotEl.innerHTML = `Растет...<br>⏳ ${timeLeft}с`;
+            } else {
+                clearInterval(growTimer);
+                plotStatus = "ready";
+                plotEl.className = "plot ready";
+                plotEl.innerHTML = "СОЗРЕЛО!<br>(Собрать)";
+            }
+        }, 1000);
+        
+    } else if (plotStatus === "ready") {
+        plotStatus = "empty";
+        plotEl.className = "plot";
+        plotEl.innerHTML = "Пусто<br>(Клик)";
+        
+        wheat++; // Добавляем пшеницу в амбар
+        
+        document.getElementById("dialog_text").innerText = "Урожай на складе! Нажми на Амбар справа, чтобы продать его.";
+        
+        // Визуальный эффект сбора: колосок на конвейере делает "вжух" до амбара
+        if (movingWheat) {
+            movingWheat.style.animation = "none"; // Сбрасываем старую анимацию
+            setTimeout(() => {
+                movingWheat.style.animation = "moveWheat 2s linear infinite"; // Запускаем заново
+            }, 10);
+        }
+        
+        updateUI();
+    }
+}
+
+// --- ФУНКЦИЯ ПРОДАЖИ ПШЕНИЦЫ ---
+function sellWheat() {
+    if (wheat > 0) {
+        let earned = wheat * 50; // По 50 монет за штуку
+        coins += earned;
+        alert(`Вы продали пшеницу на сумму ${earned} 🟡`);
+        wheat = 0;
+        updateUI();
+    } else {
+        alert("Амбар пуст!");
+    }
+}
+
+// --- РЕКЛАМА ADSGRAM ---
+function watchAdsgramVideo() {
+    if (window.Adsgram) {
+        const AdController = window.Adsgram.init({ blockId: "4218" });
+        AdController.show().then(() => {
+            crystals += 1;
+            updateUI();
+            alert("Успешно! Вы получили 1 💎");
+        }).catch(() => {
+            alert("Реклама не была досмотрена.");
+        });
+    } else {
+        alert("Рекламная сеть недоступна.");
+    }
+}
+
+// --- СОХРАНЕНИЕ И ЗАГРУЗКА ---
+function saveGameProgress() {
+    const gameData = { coins, crystals, wheat, isTerritoryBought };
+    localStorage.setItem("dark_farm_local", JSON.stringify(gameData));
+}
+
+function loadGameProgress() {
+    const savedData = localStorage.getItem("dark_farm_local");
+    if (savedData) {
+        try {
+            const data = JSON.parse(savedData);
+            coins = data.coins ?? 1000;
+            crystals = data.crystals ?? 0;
+            wheat = data.wheat ?? 0;
+            isTerritoryBought = data.isTerritoryBought ?? false;
+        } catch (e) { console.error(e); }
+    }
+    updateUI();
+}
+
+// Старт игры
+loadGameProgress();
     </script>
 </body>
 </html>
