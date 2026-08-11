@@ -7,22 +7,41 @@
     <!-- Официальный скрипт Adsgram SDK -->
     <script src="https://adsgram.ai"></script>
     <style>
-        body {
-            background-color: #121212;
+        * { box-sizing: border-box; }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden; /* Запрещаем стандартный скролл браузера */
+            background-color: #0d0d0d;
             color: #e0e0e0;
             font-family: 'Segoe UI', Arial, sans-serif;
-            margin: 0;
-            padding: 15px;
             user-select: none;
             -webkit-user-select: none;
         }
+
+        /* Фиксированный интерфейс поверх карты */
+        .ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; /* Пропускаем клики сквозь интерфейс на карту */
+            z-index: 10;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
         .header {
-            background: linear-gradient(145deg, #1e1e1e, #161616);
+            background: linear-gradient(145deg, rgba(30,30,30,0.9), rgba(22,22,22,0.9));
             padding: 15px;
             border-radius: 12px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-            margin-bottom: 20px;
             border: 1px solid #2d2d2d;
+            pointer-events: auto; /* Возвращаем кликабельность элементам баланса */
         }
         .balance-container {
             display: flex;
@@ -37,55 +56,12 @@
             border-radius: 8px;
             border: 1px solid #3d3d3d;
         }
-        .farm-container {
-            background: #1a1a1a;
-            padding: 20px;
-            border-radius: 12px;
-            border: 1px solid #252525;
-            margin-bottom: 20px;
-        }
-        .grid {
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-            flex-wrap: wrap;
-            margin-top: 15px;
-        }
-        .plot {
-            width: 100px;
-            height: 100px;
-            background-color: #3e2723;
-            border: 3px solid #5d4037;
-            border-radius: 12px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            font-size: 13px;
-            font-weight: bold;
-            transition: all 0.2s ease;
-            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
-        }
-        .plot.growing {
-            background-color: #558b2f;
-            border-color: #689f38;
-        }
-        .plot.ready {
-            background-color: #fbc02d;
-            border-color: #f57f17;
-            color: #000;
-            animation: pulse 1.5s infinite;
-        }
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.03); }
-            100% { transform: scale(1); }
-        }
         .actions {
+            pointer-events: auto; /* Возвращаем кликабельность нижним кнопкам */
             display: flex;
             flex-direction: column;
             gap: 10px;
+            margin-bottom: env(safe-area-inset-bottom, 10px);
         }
         .btn {
             background: #2e7d32;
@@ -97,75 +73,195 @@
             border-radius: 10px;
             cursor: pointer;
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            transition: background 0.2s;
+            transition: background 0.2s, transform 0.1s;
         }
         .btn:active { transform: scale(0.98); }
         .btn-ad { background: #0288d1; }
-        .btn-ad:shadow { box-shadow: 0 4px 10px rgba(2,136,209,0.4); }
         .btn-upgrade { background: #ef6c00; }
-        .btn:disabled { background: #444; color: #888; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        /* Огромная двигающаяся база-карта */
+        .viewport {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            position: relative;
+            cursor: grab;
+        }
+        .viewport:active { cursor: grabbing; }
+        
+        .map {
+            width: 1200px; /* Размер игрового поля */
+            height: 1200px;
+            background-color: #1b3a1e; /* Темно-зеленая земля фермы */
+            background-image: 
+                radial-gradient(#274e2c 20%, transparent 20%),
+                radial-gradient(#224527 20%, transparent 20%);
+            background-size: 40px 40px;
+            background-position: 0 0, 20px 20px;
+            position: absolute;
+            top: 0;
+            left: 0;
+            transform: translate3d(-300px, -300px, 0); /* Центрируем карту при старте */
+            will-change: transform;
+        }
+
+        /* Элементы на карте (Грядки) */
+        .farm-zone {
+            position: absolute;
+            top: 500px; /* Размещаем грядки ровно по центру огромной карты */
+            left: 500px;
+            background: rgba(0,0,0,0.25);
+            padding: 20px;
+            border-radius: 15px;
+            border: 2px dashed rgba(255,255,255,0.1);
+        }
+        .grid {
+            display: flex;
+            gap: 15px;
+        }
+        .plot {
+            width: 90px;
+            height: 90px;
+            background-color: #3e2723;
+            border: 3px solid #5d4037;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+            transition: all 0.2s ease;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+        }
+        .plot.growing { background-color: #558b2f; border-color: #689f38; }
+        .plot.ready {
+            background-color: #fbc02d;
+            border-color: #f57f17;
+            color: #000;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.04); }
+            100% { transform: scale(1); }
+        }
     </style>
 </head>
 <body>
 
-    <div class="header">
-        <h2 style="margin:0; color:#fff;">🌾 Dark Farm</h2>
-        <div class="balance-container">
-            <div class="balance-item">🟡 Монеты: <span id="coins-val">0</span></div>
-            <div class="balance-item">💎 Кристаллы: <span id="crystals-val">0</span></div>
+    <!-- Слой фиксированного интерфейса поверх карты -->
+    <div class="ui-layer">
+        <div class="header">
+            <h2 style="margin:0; color:#fff; font-size: 20px; text-align: center;">🌾 Dark Farm</h2>
+            <div class="balance-container">
+                <div class="balance-item">🟡 Монеты: <span id="coins-val">0</span></div>
+                <div class="balance-item">💎 Кристаллы: <span id="crystals-val">0</span></div>
+            </div>
+            <div style="margin-top: 10px; font-size: 14px; text-align: center;">Амбар: <span id="wheat-val">0</span> / 50 🌾</div>
         </div>
-        <div style="margin-top: 12px; font-size: 15px;">Амбар: <span id="wheat-val">0</span> / 50 🌾</div>
+
+        <div class="actions">
+            <button class="btn" onclick="sellAllWheat()">Продать всю пшеницу (1 🌾 = 10 🟡)</button>
+            <button class="btn btn-ad" onclick="watchAdsgramVideo()">Посмотреть рекламу (+1 💎)</button>
+            <button class="btn btn-upgrade" id="upgrade-btn" onclick="buySecondPlot()">Купить 2-ю грядку (100 🟡 или 1 💎)</button>
+        </div>
     </div>
 
-    <div class="farm-container">
-        <h3 style="margin:0 0 10px 0; color:#a5d6a7;">Ваше поле:</h3>
-        <div class="grid">
-            <div id="plot-1" class="plot" onclick="handlePlotClick(1)">Пусто<br>(Клик)</div>
-            <div id="plot-2" class="plot" style="display:none;" onclick="handlePlotClick(2)">Пусто<br>(Клик)</div>
-        </div>
-    </div>
+    <!-- Игровое пространство с двигающейся картой -->
+    <div class="viewport" id="viewport">
+        <div class="map" id="game-map">
+            
+            <!-- Грядки, жестко привязанные к координатам карты -->
+            <div class="farm-zone">
+                <div class="grid">
+                    <div id="plot-1" class="plot" onclick="handlePlotClick(1)">Пусто<br>(Клик)</div>
+                    <div id="plot-2" class="plot" style="display:none;" onclick="handlePlotClick(2)">Пусто<br>(Клик)</div>
+                </div>
+            </div>
 
-    <div class="actions">
-        <button class="btn" onclick="sellAllWheat()">Продать всю пшеницу (1 🌾 = 10 🟡)</button>
-        <button class="btn btn-ad" onclick="watchAdsgramVideo()">Посмотреть рекламу (+1 💎)</button>
-        <button class="btn btn-upgrade" id="upgrade-btn" onclick="buySecondPlot()">Купить 2-ю грядку (100 🟡 или 1 💎)</button>
+        </div>
     </div>
 
     <script>
-        // Игровое состояние экономики
+        // Экономическое состояние
         let coins = 0;
         let crystals = 0;
         let wheat = 0;
         let hasSecondPlot = false;
 
-        // Состояние грядок: "empty" (пусто), "growing" (растет), "ready" (созрело)
         let plotsState = {
             1: { status: "empty", timer: null, timeLeft: 0 },
             2: { status: "empty", timer: null, timeLeft: 0 }
         };
 
-        const GROW_TIME = 5; // Время роста пшеницы в секундах
+        const GROW_TIME = 5; // Время роста пшеницы
 
-        // Функция обновления интерфейса
+        // --- МЕХАНИКА ДВИЖЕНИЯ КАРТЫ ПАЛЬЦЕМ (DRAG & SCROLL) ---
+        const viewport = document.getElementById('viewport');
+        const map = document.getElementById('game-map');
+        
+        let isDragging = false;
+        let startX, startY;
+        let currentX = -300, currentY = -300; // Стартовое центрирование
+
+        // Сенсорное управление для смартфонов
+        viewport.addEventListener('touchstart', (e) => {
+            isDragging = true;
+            startX = e.touches[0].clientX - currentX;
+            startY = e.touches[0].clientY - currentY;
+        }, { passive: true });
+
+        viewport.addEventListener('touchmove', (e) => {
+            if (!isDragging) return;
+            
+            currentX = e.touches[0].clientX - startX;
+            currentY = e.touches[0].clientY - startY;
+
+            // Запрещаем вытаскивать карту за видимые границы экрана
+            currentX = Math.min(0, Math.max(currentX, viewport.clientWidth - 1200));
+            currentY = Math.min(0, Math.max(currentY, viewport.clientHeight - 1200));
+
+            map.style.transform = `translate3d(${currentX}px, ${currentY}px, 0)`;
+        }, { passive: true });
+
+        viewport.addEventListener('touchend', () => { isDragging = false; });
+
+        // Управление мышкой (для проверки с компьютера)
+        viewport.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            startX = e.clientX - currentX;
+            startY = e.clientY - currentY;
+        });
+        viewport.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            currentX = e.clientX - startX;
+            currentY = e.clientY - startY;
+            currentX = Math.min(0, Math.max(currentX, viewport.clientWidth - 1200));
+            currentY = Math.min(0, Math.max(currentY, viewport.clientHeight - 1200));
+            map.style.transform = `translate3d(${currentX}px, ${currentY}px, 0)`;
+        });
+        window.addEventListener('mouseup', () => { isDragging = false; });
+
+
+        // --- ИГРОВАЯ ЛОГИКА ФЕРМЫ ---
         function updateUI() {
             document.getElementById("coins-val").innerText = coins;
             document.getElementById("crystals-val").innerText = crystals;
             document.getElementById("wheat-val").innerText = wheat;
 
-            // Показываем вторую грядку после ее официальной покупки
             if (hasSecondPlot) {
                 document.getElementById("plot-2").style.display = "flex";
                 document.getElementById("upgrade-btn").style.display = "none";
             }
         }
 
-        // Логика клика по грядке (Посадка / Сбор урожая)
         function handlePlotClick(plotId) {
             let plot = plotsState[plotId];
             let plotEl = document.getElementById(`plot-${plotId}`);
 
             if (plot.status === "empty") {
-                // Запуск процесса роста
                 plot.status = "growing";
                 plot.timeLeft = GROW_TIME;
                 plotEl.className = "plot growing";
@@ -173,18 +269,9 @@
 
                 plot.timer = setInterval(() => {
                     plot.timeLeft--;
-                    if (plot.timeLeft > 0) {
-                        plotEl.innerHTML = `Рост...<br>${plot.timeLeft}с`;
-                    } else {
-                        clearInterval(plot.timer);
-                        plot.status = "ready";
-                        plotEl.className = "plot ready";
-                        plotEl.innerHTML = "СОЗРЕЛО!<br>(Собрать)";
-                    }
-                }, 1000);
+}, 1000);
 
             } else if (plot.status === "ready") {
-                // Логика сбора ресурсов в амбар
                 if (wheat >= 50) {
                     alert("Амбар заполнен! Продайте пшеницу.");
                     return;
@@ -197,7 +284,6 @@
             }
         }
 
-        // Продажа ресурсов
         function sellAllWheat() {
             if (wheat > 0) {
                 coins += wheat * 10;
@@ -209,7 +295,6 @@
             }
         }
 
-        // Покупка новой грядки (Автоматическая доплата кристаллами)
         function buySecondPlot() {
             if (hasSecondPlot) return;
 
@@ -217,20 +302,19 @@
                 coins -= 100;
                 hasSecondPlot = true;
                 updateUI();
-                alert("Поздравляем! Вы открыли новую грядку за монеты!");
+                alert("Вы открыли новую грядку за монеты!");
             } else if (crystals >= 1) {
                 if (confirm("Не хватает монет. Хотите открыть новую грядку за 1 💎?")) {
                     crystals -= 1;
                     hasSecondPlot = true;
                     updateUI();
-                    alert("Поздравляем! Вы открыли новую грядку за Кристаллы!");
+                    alert("Вы открыли новую грядку за Кристаллы!");
                 }
             } else {
-                alert("Не хватает ресурсов! Требуется 100 🟡 или 1 💎. Вы можете получить Кристаллы за просмотр рекламы.");
+                alert("Не хватает ресурсов! Требуется 100 🟡 или 1 💎. Получите Кристаллы за просмотр рекламы.");
             }
         }
 
-        // Официальный защищенный плеер Adsgram
         function watchAdsgramVideo() {
             if (window.AdsGram) {
                 const AdController = window.AdsGram.init({ blockId: "42181" });
@@ -240,15 +324,13 @@
                     updateUI();
                     alert("Успешно! Вам начислен 1 💎");
                 }).catch((result) => {
-                    alert("Рекламный ролик не был досмотрен до конца.");
+                    alert("Рекламный ролик не был досмотрен.");
                 });
             } else {
-                // Если реклама не загрузилась (AdBlock/сбой сети) — СТРОГО ноль начислений
-                alert("Не удалось загрузить рекламу. Проверьте подключение к интернету или отключите блокировщик рекламы.");
+                alert("Не удалось загрузить рекламу. Проверьте подключение или отключите AdBlock.");
             }
         }
 
-        // Инициализация при старте
         updateUI();
     </script>
 </body>
