@@ -60,55 +60,53 @@
             background-size: 80px 80px;
             background-position: 0 0, 40px 40px;
 
-            /* ИЗМЕНЕНО: Поворот на -45 градусов разворачивает карту СПРАВА НАЛЕВО */
+            /* Наклон карты справа налево */
             transform: rotateX(60deg) rotateZ(-45deg);
             transform-style: preserve-3d;
         }
 
-        /* Трёхмерная дорога, идущая ровно ВНИЗ от центра (вдоль оси Y карты) */
+        /* ИСПРАВЛЕНО: Дорога идет ровно от центра карты к нижнему левому краю экрана */
         .dirt-road {
             position: absolute;
-            top: 2000px;         /* Начинается ровно от центра, где стоит дом */
-            left: 1960px;        /* Выровнена по центру по ширине */
-            width: 80px;         /* Ширина в 2 блока */
-            height: 2000px;      /* Тянется от дома до самого низа карты */
+            top: 1960px;         /* По центру по вертикали */
+            left: 0;             /* Начинается от левого края карты */
+            width: 2040px;       /* Доходит ровно до центра (до порога дома) */
+            height: 80px;        /* Ширина дороги в 2 блока */
             
             /* Качественная текстура грунтовой дороги */
-            background-image: url('https://freepik.com');
-            background-size: 80px 200px;
-            border-left: 4px solid #6e4720;
-            border-right: 4px solid #6e4720;
-            box-shadow: inset 0 0 15px rgba(0,0,0,0.5);
+            background-image: url('https://transparenttextures.com'), linear-gradient(to bottom, #d0a46c, #b58951);
+            border-top: 4px solid #6e4720;
+            border-bottom: 4px solid #6e4720;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.3);
             z-index: 1;
         }
 
-        /* Контейнер для вертикальных объектов (Дом развернут под новый угол) */
+        /* Контейнер для вертикальных объектов */
         .iso-object {
             position: absolute;
             transform-style: preserve-3d;
-            /* Разворот скорректирован под новый угол карты (-45) */
             transform: rotateZ(45deg) rotateX(-60deg);
             transform-origin: bottom center;
         }
 
-        /* Точное расположение дома над дорогой */
+        /* ИСПРАВЛЕНО: Точное расположение дома у окончания дороги в центре */
         .house-position {
-            top: 1820px;         /* Стоит чуть выше начала дороги */
-            left: 1910px;        /* Выровнен по центру дороги */
-            width: 180px;        
-            height: 180px;
+            top: 1840px;         
+            left: 1980px;        
+            width: 160px;        
+            height: 160px;
             z-index: 10;
         }
 
-        /* Качественный 3D-спрайт дома */
+        /* Качественный 3D-спрайт мультяшного дома */
         .farm-house-sprite {
             width: 100%;
             height: 100%;
-            background-image: url('https://uncyc.org');
+            background-image: url('https://flaticon.com');
             background-size: contain;
             background-repeat: no-repeat;
             background-position: bottom center;
-            filter: drop-shadow(-10px 15px 10px rgba(0,0,0,0.4));
+            filter: drop-shadow(-15px 15px 10px rgba(0,0,0,0.3));
             cursor: pointer;
         }
     </style>
@@ -120,7 +118,7 @@
             <div id="camera-zoom">
                 <div id="game-map">
                     
-                    <!-- Дорога, уходящая от дома вниз-влево по экрану -->
+                    <!-- Дорога, идущая из верхнего правого угла в нижний левый -->
                     <div class="dirt-road"></div>
 
                     <!-- Качественный 3D дом из спрайта -->
@@ -137,7 +135,7 @@
         const panContainer = document.getElementById('camera-pan');
         const zoomContainer = document.getElementById('camera-zoom');
 
-        // Центрируем камеру на доме при старте
+        // Камера сразу наведена на дом в центре поля
         let currentX = 0, currentY = -50; 
         let currentZoom = 0.8;
 
@@ -166,8 +164,8 @@
         window.addEventListener('touchstart', (e) => {
             if (e.touches.length === 1) {
                 isDragging = true;
-                startX = e.touches.clientX - currentX;
-                startY = e.touches.clientY - currentY;
+                startX = e.touches[0].clientX - currentX;
+                startY = e.touches[0].clientY - currentY;
             } else if (e.touches.length === 2) {
                 isDragging = false;
                 startPinchDist = getPinchDistance(e);
@@ -177,10 +175,9 @@
 
         window.addEventListener('touchmove', (e) => {
             if (isDragging && e.touches.length === 1) {
-                currentX = e.touches.clientX - startX;
-                currentY = e.touches.clientY - startY;
+                currentX = e.touches[0].clientX - startX;
+                currentY = e.touches[0].clientY - startY;
                 
-                // Ограничения перемещения
                 currentX = Math.min(1200, Math.max(currentX, -1200));
                 currentY = Math.min(1200, Math.max(currentY, -1200));
                 
@@ -201,8 +198,8 @@
                 isDragging = false;
             } else if (e.touches.length === 1) {
                 isDragging = true;
-                startX = e.touches.clientX - currentX;
-                startY = e.touches.clientY - currentY;
+                startX = e.touches[0].clientX - currentX;
+                startY = e.touches[0].clientY - currentY;
             }
         });
 
