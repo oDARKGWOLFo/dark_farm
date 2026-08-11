@@ -3,8 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Dark Farm Pro</title>
+    <title>Jack's Farm Clone</title>
     <style>
+        /* ==========================================================================
+           1. СБРОС И БАЗОВЫЕ НАСТРОЙКИ (ЭКРАН ТЕЛЕФОНА)
+           ========================================================================== */
         * {
             box-sizing: border-box;
             margin: 0;
@@ -18,10 +21,11 @@
             width: 100%;
             height: 100%;
             overflow: hidden;
-            background-color: #1a2e10;
+            background-color: #101b07;
             font-family: Arial, sans-serif;
         }
 
+        /* Окно просмотра игры на мобильном */
         #viewport {
             width: 100%;
             height: 100%;
@@ -29,181 +33,223 @@
             overflow: hidden;
         }
 
-        #camera-pan {
-            position: absolute;
-            width: 0;
-            height: 0;
-            top: 50%;
-            left: 50%;
-            will-change: transform;
-        }
-
-        #camera-zoom {
-            width: 0;
-            height: 0;
-            will-change: transform;
-        }
-
-        /* Изометрическая 3D-карта 100х100 блоков (4000px) */
+        /* ==========================================================================
+           2. ИГРОВАЯ КАРТА И ТРАВА (Строго вверху CSS)
+           ========================================================================== */
         #game-map {
             position: absolute;
-            width: 4000px;
-            height: 4000px;
-            left: -2000px;
-            top: -2000px;
+            width: 3200px;  /* Размер карты 100 блоков в длину (100 * 32px) */
+            height: 3200px; /* Размер карты 100 блоков в ширину (100 * 32px) */
+            left: -1400px;
+            top: -1400px;
             
-            /* Светло-зелёная шахматная трава */
-            background-color: #7cd13d;
+            /* Сочный, яркий цвет травы прямо как на скриншоте Jack's Farm */
+            background-color: #62b132;
+            
+            /* Сетка из аккуратных блоков */
             background-image: 
-                linear-gradient(45deg, #86db46 25%, transparent 25%, transparent 75%, #86db46 75%, #86db46),
-                linear-gradient(45deg, #86db46 25%, #7cd13d 25%, #7cd13d 75%, #86db46 75%, #86db46);
-            background-size: 80px 80px;
-            background-position: 0 0, 40px 40px;
-
-            /* Наклон карты справа налево */
-            transform: rotateX(60deg) rotateZ(-45deg);
-            transform-style: preserve-3d;
+                linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+            background-size: 32px 32px;
+            
+            /* Ровный угол обзора сверху вниз (без наклонов) */
+            transform: translate3d(0, 0, 0);
+            will-change: transform;
         }
 
-        /* ИСПРАВЛЕНО: Дорога идет ровно от центра карты к нижнему левому краю экрана */
-        .dirt-road {
+        /* ==========================================================================
+           3. РАЗДЕЛ: СТИЛИ ДОРОГ И КОНВЕЙЕРА
+           ========================================================================== */
+        /* Песчаная дорога у магазина и склада */
+        .sand-road {
             position: absolute;
-            top: 1960px;         /* По центру по вертикали */
-            left: 0;             /* Начинается от левого края карты */
-            width: 2040px;       /* Доходит ровно до центра (до порога дома) */
-            height: 80px;        /* Ширина дороги в 2 блока */
-            
-            /* Качественная текстура грунтовой дороги */
-            background-image: url('https://transparenttextures.com'), linear-gradient(to bottom, #d0a46c, #b58951);
-            border-top: 4px solid #6e4720;
-            border-bottom: 4px solid #6e4720;
-            box-shadow: inset 0 0 15px rgba(0,0,0,0.3);
+            background-color: #f7df9a;
+            border-radius: 20px;
             z-index: 1;
         }
 
-        /* Контейнер для вертикальных объектов */
-        .iso-object {
+        /* Конвейерная лента для ресурсов */
+        .conveyor-belt {
             position: absolute;
-            transform-style: preserve-3d;
-            transform: rotateZ(45deg) rotateX(-60deg);
-            transform-origin: bottom center;
+            background: linear-gradient(90deg, #444 0%, #777 50%, #444 100%);
+            border-left: 3px solid #222;
+            border-right: 3px solid #222;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+            z-index: 2;
         }
 
-        /* ИСПРАВЛЕНО: Точное расположение дома у окончания дороги в центре */
-        .house-position {
-            top: 1840px;         
-            left: 1980px;        
-            width: 160px;        
-            height: 160px;
-            z-index: 10;
+        /* ==========================================================================
+           4. РАЗДЕЛ: СТИЛИ СТРУКТУР И ПОСТРОЕК
+           ========================================================================== */
+        /* Общий стиль для всех карточек и зданий */
+        .building-card {
+            position: absolute;
+            background-color: #4a2f13;
+            border: 4px solid #2b1808;
+            border-radius: 12px;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-size: 14px;
+            font-weight: bold;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+            z-index: 3;
         }
 
-        /* Качественный 3D-спрайт мультяшного дома */
-        .farm-house-sprite {
-            width: 100%;
-            height: 100%;
-            background-image: url('https://flaticon.com');
-            background-size: contain;
-            background-repeat: no-repeat;
-            background-position: bottom center;
-            filter: drop-shadow(-15px 15px 10px rgba(0,0,0,0.3));
+        /* Кнопки покупки внутри построек */
+        .btn-action {
+            background: linear-gradient(to bottom, #3498db, #2980b9);
+            border: 2px solid #1f5f8a;
+            border-radius: 6px;
+            color: white;
+            padding: 4px 12px;
+            margin-top: 6px;
+            font-weight: bold;
             cursor: pointer;
+        }
+
+        /* Магазин грузовика (Продать) */
+        .shop-building {
+            background-color: #8e44ad;
+            border-color: #6c3483;
+        }
+        .btn-sell {
+            background: linear-gradient(to bottom, #e74c3c, #c0392b);
+            border-color: #962d22;
+        }
+
+        /* Большой Склад/Амбар */
+        .barn-building {
+            background-color: #c0392b;
+            border-color: #7f8c8d;
+        }
+
+        /* Система огорода из 9 грядок */
+        .farm-plot-zone {
+            position: absolute;
+            width: 180px;
+            height: 140px;
+            background-color: #8b5a2b;
+            border: 4px solid #5c4033;
+            border-radius: 8px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 4px;
+            padding: 4px;
+            z-index: 3;
+        }
+        .single-grid {
+            background-color: #5c4033;
+            border-radius: 3px;
+            border: 1px solid #4a3226;
+        }
+
+        /* Код для загона коров (Добавлено в самый конец раздела структур, как ты просил) */
+        .cow-coop-building {
+            background-color: #7f8c8d;
+            border-color: #34495e;
         }
     </style>
 </head>
 <body>
 
     <div id="viewport">
-        <div id="camera-pan">
-            <div id="camera-zoom">
-                <div id="game-map">
-                    
-                    <!-- Дорога, идущая из верхнего правого угла в нижний левый -->
-                    <div class="dirt-road"></div>
+        <!-- ==========================================================================
+             ИГРОВАЯ КАРТА (На первом месте в самом верху тела документа)
+             ========================================================================== -->
+        <div id="game-map">
 
-                    <!-- Качественный 3D дом из спрайта -->
-                    <div class="iso-object house-position">
-                        <div class="farm-house-sprite"></div>
-                    </div>
+            <!-- РАЗДЕЛ: ДОРОГИ И ТРОПИНКИ -->
+            <!-- Песочная зона вверху для грузовика -->
+            <div class="sand-road" style="top: 1400px; left: 1450px; width: 300px; height: 160px;"></div>
+            
+            <!-- Вертикальная железная лента конвейера к складу -->
+            <div class="conveyor-belt" style="top: 1500px; left: 1720px; width: 40px; height: 350px;"></div>
 
-                </div>
+
+            <!-- РАЗДЕЛ: ДОБАВЛЕНИЕ СТРУКТУР И ПОСТРОЕК -->
+            
+            <!-- 1. Магазин с грузовиком (Продать) -->
+            <div class="building-card shop-building" style="top: 1420px; left: 1480px; width: 140px; height: 110px;">
+                Магазин
+                <button class="btn-action btn-sell">Продать</button>
             </div>
+
+            <!-- 2. Большой склад (Куда ведет конвейер) -->
+            <div class="building-card barn-building" style="top: 1480px; left: 1680px; width: 120px; height: 130px;">
+                Склад
+            </div>
+
+            <!-- 3. Система огорода (9 грядок земли) -->
+            <div class="farm-plot-zone" style="top: 1620px; left: 1500px;">
+                <!-- 9 индивидуальных ячеек земли -->
+                <div class="single-grid"></div><div class="single-grid"></div><div class="single-grid"></div>
+                <div class="single-grid"></div><div class="single-grid"></div><div class="single-grid"></div>
+                <div class="single-grid"></div><div class="single-grid"></div><div class="single-grid"></div>
+            </div>
+
+            <!-- 4. Загон для Курицы (Купить за 5000) -->
+            <div class="building-card" style="top: 1800px; left: 1510px; width: 160px; height: 100px;">
+                Продаётся<br>5 000 🟡
+                <button class="btn-action">Купить</button>
+            </div>
+
+            <!-- 5. Загон для Коров (Добавлен с новой строки в самом конце раздела структур) -->
+            <div class="building-card cow-coop-building" style="top: 1930px; left: 1510px; width: 160px; height: 100px;">
+                Продаётся<br>25 000 🟡
+                <button class="btn-action">Купить</button>
+            </div>
+
         </div>
     </div>
 
+    <!-- ==========================================================================
+         5. РАЗДЕЛ: ЛОГИКА И СКРИПТЫ (Движение камеры)
+         ========================================================================== -->
     <script>
-        const panContainer = document.getElementById('camera-pan');
-        const zoomContainer = document.getElementById('camera-zoom');
+        const viewport = document.getElementById('viewport');
+        const map = document.getElementById('game-map');
 
-        // Камера сразу наведена на дом в центре поля
-        let currentX = 0, currentY = -50; 
-        let currentZoom = 0.8;
-
-        const MIN_ZOOM = 0.4;
-        const MAX_ZOOM = 2.0;
-
+        // Стартовые координаты (камера наведена на центр фермы)
         let isDragging = false;
         let startX = 0, startY = 0;
-        let startPinchDist = 0;
-        let startZoom = 1.0;
+        let currentX = -1400, currentY = -1450;
 
-        function applyTransforms() {
-            panContainer.style.transform = `translate3d(${currentX}px, ${currentY}px, 0)`;
-            zoomContainer.style.transform = `scale(${currentZoom})`;
-        }
+        // Принудительно ставим камеру в стартовую позицию
+        map.style.transform = `translate3d(${currentX}px, ${currentY}px, 0)`;
 
-        function getPinchDistance(e) {
-            if (e.touches.length < 2) return 0;
-            const t1 = e.touches[0];
-            const t2 = e.touches[1];
-            const dx = t1.clientX - t2.clientX;
-            const dy = t1.clientY - t2.clientY;
-            return Math.sqrt(dx * dx + dy * dy);
-        }
-
-        window.addEventListener('touchstart', (e) => {
-            if (e.touches.length === 1) {
-                isDragging = true;
-                startX = e.touches[0].clientX - currentX;
-                startY = e.touches[0].clientY - currentY;
-            } else if (e.touches.length === 2) {
-                isDragging = false;
-                startPinchDist = getPinchDistance(e);
-                startZoom = currentZoom;
-            }
+        // Касание экрана пальцем
+        viewport.addEventListener('touchstart', (e) => {
+            isDragging = true;
+            startX = e.touches[0].clientX - currentX;
+            startY = e.touches[0].clientY - currentY;
         }, { passive: true });
 
-        window.addEventListener('touchmove', (e) => {
-            if (isDragging && e.touches.length === 1) {
-                currentX = e.touches[0].clientX - startX;
-                currentY = e.touches[0].clientY - startY;
-                
-                currentX = Math.min(1200, Math.max(currentX, -1200));
-                currentY = Math.min(1200, Math.max(currentY, -1200));
-                
-                applyTransforms();
-            } else if (e.touches.length === 2) {
-                const currentDist = getPinchDistance(e);
-                if (startPinchDist > 0 && currentDist > 0) {
-                    const factor = currentDist / startPinchDist;
-                    currentZoom = startZoom * factor;
-                    currentZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, currentZoom));
-                    applyTransforms();
-                }
-            }
+        // Перетаскивание карты по экрану
+        viewport.addEventListener('touchmove', (e) => {
+            if (!isDragging) return;
+
+            currentX = e.touches[0].clientX - startX;
+            currentY = e.touches[0].clientY - startY;
+
+            // Жесткие рамки карты 100х100 блоков, чтобы не вылетать за экран
+            const minX = viewport.clientWidth - 3200;
+            const minY = viewport.clientHeight - 3200;
+
+            currentX = Math.min(0, Math.max(currentX, minX));
+            currentY = Math.min(0, Math.max(currentY, minY));
+
+            map.style.transform = `translate3d(${currentX}px, ${currentY}px, 0)`;
         }, { passive: true });
 
-        window.addEventListener('touchend', (e) => {
-            if (e.touches.length === 0) {
-                isDragging = false;
-            } else if (e.touches.length === 1) {
-                isDragging = true;
-                startX = e.touches[0].clientX - currentX;
-                startY = e.touches[0].clientY - currentY;
-            }
+        // Конец касания
+        viewport.addEventListener('touchend', () => {
+            isDragging = false;
         });
-
-        applyTransforms();
     </script>
 </body>
 </html>
