@@ -339,34 +339,51 @@ function handlePlotClick(plotId) {
             }
         }
 
-    р// --- СИСТЕМА АВТОСОХРАНЕНИЯ ПРОГРЕССА ---
+// --- ОФИЦИАЛЬНОЕ ОБЛАЧНОЕ АВТОСОХРАНЕНИЕ TELEGRAM ---
         function saveGameProgress() {
-            const gameData = {
-                coins: coins,
-                crystals: crystals,
-                wheat: wheat,
-                hasSecondPlot: hasSecondPlot
-            };
-            localStorage.setItem("dark_farm_save", JSON.stringify(gameData));
+            // Проверяем, запущены ли мы внутри Telegram
+            if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.CloudStorage) {
+                const gameData = {
+                    coins: coins,
+                    crystals: crystals,
+                    wheat: wheat,
+                    hasSecondPlot: hasSecondPlot
+                };
+                // Сохраняем в облако Telegram
+                window.Telegram.WebApp.CloudStorage.setItem("dark_farm_cloud", JSON.stringify(gameData), (err, success) => {
+                    if (err) console.error("Ошибка сохранения в облако Telegram:", err);
+                });
+            }
         }
 
         function loadGameProgress() {
-            const savedData = localStorage.getItem("dark_farm_save");
-            if (savedData) {
-                const data = JSON.parse(savedData);
-                coins = data.coins || 0;
-                crystals = data.crystals || 0;
-                wheat = data.wheat || 0;
-                hasSecondPlot = data.hasSecondPlot || false;
+            if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.CloudStorage) {
+                // Запрашиваем данные из облака Telegram
+                window.Telegram.WebApp.CloudStorage.getItem("dark_farm_cloud", (err, savedData) => {
+                    if (!err && savedData) {
+                        try {
+                            const data = JSON.parse(savedData);
+                            coins = data.coins || 0;
+                            crystals = data.crystals || 0;
+                            wheat = data.wheat || 0;
+                            hasSecondPlot = data.hasSecondPlot || false;
+                            // Принудительно обновляем экран после загрузки из сети
+                            originalUpdateUI(); 
+                        } catch (e) {
+                            console.error("Ошибка чтения сейва:", e);
+                        }
+                    }
+                });
             }
         }
 
         const originalUpdateUI = updateUI;
         updateUI = function() {
             originalUpdateUI();
-            saveGameProgress();
+            saveGameProgress(); // Автосохранение при каждом действии
         };
 
+        // Инициализация при старте
         loadGameProgress();
         updateUI();
     </script>
