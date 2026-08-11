@@ -126,10 +126,14 @@
             border-color: #962d22;
         }
 
-        /* Большой Склад/Амбар */
-        .barn-building {
-            background-color: #c0392b;
-            border-color: #7f8c8d;
+        /* Силовая башня ( размер 3 на 3 блока*/
+        .silo-building {
+            background-image: url('silo.png');
+            background-size: cover; 
+            background-repeat: no-repeat;
+            background-position: center;
+            filter: drop-shadow(4px 8px 6px rgba(0,0,0,0.3));
+            z-index: 3;
         }
 
         /* Система огорода из 9 грядок */
@@ -184,10 +188,9 @@
                 <button class="btn-action btn-sell">Продать</button>
             </div>
 
-            <!-- 2. Большой склад (Куда ведет конвейер) -->
-            <div class="building-card barn-building" style="top: 1480px; left: 1680px; width: 120px; height: 130px;">
-                Склад
-            </div>
+   <!-- 2. Силосная башня (Сверху отступ 5 блоков, слева отступ 2 блока, размер 3х3) -->
+<div class="building-card silo-building" style="top: 160px; left: 64px; width: 96px; height: 96px; background-color: transparent; border: none; box-shadow: none; position: absolute;">
+</div>
 
             <!-- 3. Система огорода (9 грядок земли) -->
             <div class="farm-plot-zone" style="top: 1620px; left: 1500px;">
