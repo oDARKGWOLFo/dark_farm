@@ -216,42 +216,41 @@
          5. РАЗДЕЛ: ЛОГИКА И СКРИПТЫ (Движение камеры)
          ========================================================================== -->
     <script>
-        const viewport = document.getElementById('viewport');
+const viewport = document.getElementById('viewport');
         const map = document.getElementById('game-map');
 
-        // Стартовые координаты (камера наведена на центр фермы)
         let isDragging = false;
         let startX = 0, startY = 0;
-        let currentX = -1400, currentY = -1450;
+        let currentX = 0, currentY = 0;
 
-        // Принудительно ставим камеру в стартовую позицию
-        map.style.transform = `translate3d(${currentX}px, ${currentY}px, 0)`;
+        // Настройка лимитов скролла под размер экрана телефона
+        function getLimits() {
+            const minX = Math.min(0, viewport.clientWidth - 384);
+            const minY = Math.min(0, viewport.clientHeight - 768);
+            return { minX, minY };
+        }
 
-        // Касание экрана пальцем
         viewport.addEventListener('touchstart', (e) => {
             isDragging = true;
-            startX = e.touches[0].clientX - currentX;
-            startY = e.touches[0].clientY - currentY;
+            startX = e.touches.clientX - currentX;
+            startY = e.touches.clientY - currentY;
         }, { passive: true });
 
-        // Перетаскивание карты по экрану
         viewport.addEventListener('touchmove', (e) => {
             if (!isDragging) return;
 
-            currentX = e.touches[0].clientX - startX;
-            currentY = e.touches[0].clientY - startY;
+            currentX = e.touches.clientX - startX;
+            currentY = e.touches.clientY - startY;
 
-            // Жесткие рамки карты 100х100 блоков, чтобы не вылетать за экран
-            const minX = viewport.clientWidth - 3200;
-            const minY = viewport.clientHeight - 3200;
+            const limits = getLimits();
 
-            currentX = Math.min(0, Math.max(currentX, minX));
-            currentY = Math.min(0, Math.max(currentY, minY));
+            // Жестко останавливаем карту на границах 12х24 блоков, без черных дыр
+            currentX = Math.min(Math.abs(limits.minX)/2, Math.max(currentX, limits.minX - Math.abs(limits.minX)/2));
+            currentY = Math.min(0, Math.max(currentY, limits.minY));
 
             map.style.transform = `translate3d(${currentX}px, ${currentY}px, 0)`;
         }, { passive: true });
 
-        // Конец касания
         viewport.addEventListener('touchend', () => {
             isDragging = false;
         });
