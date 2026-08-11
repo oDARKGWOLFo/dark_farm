@@ -121,6 +121,7 @@
     </style>
 </head>
 <body>
+    <!-- Фиксированный интерфейс UI поверх карты -->
     <div class="ui-layer">
         <div class="top-bar">
             <div class="resource-panel"><span>💎</span><span class="resource-val" id="crystals-val">0</span></div>
@@ -134,28 +135,45 @@
             <div class="avatar">👨‍🌾</div>
             <div>
                 <strong style="color: #d84315;">Фермер Джек:</strong><br>
-                <span id="dialog-text">Привет! Купи свою первую территорию, чтобы получать урожай.</span>
+                <span id="dialog-text">Привет! Купи свою первую территорию, чтобы запустить конвейер и собирать урожай!</span>
             </div>
         </div>
     </div>
 
+    <!-- Игровой мир со скроллом -->
     <div class="viewport" id="viewport">
         <div class="map" id="game-map">
-            <div class="buy-card" id="card-territory" style="top: 500px; left: 500px;">
+            
+            <!-- Красный амбар (Склад) -->
+            <div class="barn-building"></div>
+
+            <!-- Серая конвейерная лента -->
+            <div class="conveyor-belt">
+                <div class="moving-wheat" id="conveyor-wheat">🌾</div>
+            </div>
+
+            <!-- Карточка покупки Грядки -->
+            <div class="buy-card" id="card-territory" style="top: 550px; left: 450px;">
                 <div class="card-title">⛏️ Грядка №1</div>
                 <div class="card-price">1 000 🟡</div>
                 <button class="btn-buy" onclick="buyTerritory()">Купить</button>
             </div>
-            <div id="actual-plot" class="plot" style="top: 530px; left: 535px; position: absolute; display: none;" onclick="handlePlotClick()">
+
+            <!-- Сама грядка (изменит вид на вспаханную землю) -->
+            <div id="actual-plot" class="plot" style="top: 550px; left: 470px; position: absolute; display: none;" onclick="handlePlotClick()">
                 Пусто<br>(Клик)
             </div>
-            <div class="buy-card" style="top: 700px; left: 600px;">
+
+            <!-- Карточка Курятника на будущее -->
+            <div class="buy-card" style="top: 750px; left: 630px;">
                 <div class="card-title">🐔 Курятник</div>
                 <div class="card-price">5 000 🟡</div>
                 <button class="btn-buy" onclick="alert('Копите монеты!')">Купить</button>
             </div>
+
         </div>
     </div>
+
     <script>
         let coins = 1000;
         let crystals = 0;
