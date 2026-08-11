@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Dark Farm</title>
+    <title>Dark Farm Pro</title>
     <style>
-        /* Базовые настройки экрана */
         * {
             box-sizing: border-box;
             margin: 0;
@@ -19,7 +18,7 @@
             width: 100%;
             height: 100%;
             overflow: hidden;
-            background-color: #1a1a1a;
+            background-color: #1e3512;
             font-family: Arial, sans-serif;
         }
 
@@ -30,196 +29,287 @@
             overflow: hidden;
         }
 
-        /* Карта фермы (100 блоков по 32px = 3200px) */
-        #game-map {
-            width: 3200px;
-            height: 3200px;
+        /* Камера перемещения (Drag) */
+        #camera-pan {
             position: absolute;
-            
-            /* Светло-зеленый сочный цвет травы как в Hay Day */
-            background-color: #72b243;
-            
-            /* Текстура аккуратной блочной сетки 100х100 */
-            background-image: 
-                linear-gradient(to right, rgba(255, 255, 255, 0.06) 1px, transparent 1px),
-                linear-gradient(to bottom, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
-            background-size: 32px 32px;
-            
-            /* Смещение в центр при старте */
-            transform: translate3d(-1400px, -1400px, 0);
+            width: 0;
+            height: 0;
+            top: 50%;
+            left: 50%;
             will-change: transform;
         }
 
-        /* Грунтовая дорога, идущая от центра вниз */
+        /* Камера приближения (Zoom) */
+        #camera-zoom {
+            width: 0;
+            height: 0;
+            will-change: transform;
+        }
+
+        /* Изометрическая 3D-карта (100 блоков по 40px = 4000px) */
+        #game-map {
+            position: absolute;
+            width: 4000px;
+            height: 4000px;
+            left: -2000px;
+            top: -2000px;
+            
+            /* Светло-зелёная шахматная трава как в Hay Day */
+            background-color: #7cd13d;
+            background-image: 
+                linear-gradient(45deg, #86db46 25%, transparent 25%, transparent 75%, #86db46 75%, #86db46),
+                linear-gradient(45deg, #86db46 25%, #7cd13d 25%, #7cd13d 75%, #86db46 75%, #86db46);
+            background-size: 80px 80px;
+            background-position: 0 0, 40px 40px;
+
+            /* Наклон всей карты в 3D изометрию */
+            transform: rotateX(60deg) rotateZ(45deg);
+            transform-style: preserve-3d;
+        }
+
+        /* Трёхмерная дорога, идущая по диагонали вдоль сетки блоков */
         .dirt-road {
             position: absolute;
-            top: 50%;
-            left: calc(50% - 16px); /* Ширина в 1 блок сетки */
-            width: 32px;
-            height: 400px; /* Тянется вниз от дома */
-            background-color: #d2b48c;
-            /* Эффект вытоптанной земли по краям дороги */
-            box-shadow: inset 0 0 8px rgba(92, 64, 51, 0.3), 0 0 4px rgba(114, 178, 67, 0.5);
+            top: 1960px; /* По центру карты */
+            left: 0;
+            width: 4000px;
+            height: 80px; /* Ширина дороги в 2 блока */
+            background: #d0a46c;
+            border-top: 3px solid #b0844c;
+            border-bottom: 3px solid #b0844c;
+            box-shadow: inset 0 0 15px rgba(92, 64, 51, 0.4);
             z-index: 1;
         }
 
-        /* Качественный фермерский дом в стиле Hay Day */
-        .farm-house {
+        /* Контейнер для вертикальных объектов (Дом) */
+        .iso-object {
             position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -100%); /* Ставим ровно основанием в центр */
-            width: 128px;  /* Размер 4х4 блока */
-            height: 110px;
-            z-index: 2;
-            cursor: pointer;
+            transform-style: preserve-3d;
+            transform: rotateZ(-45deg) rotateX(-60deg);
+            transform-origin: bottom center;
         }
 
-        /* Стены дома (Уютное дерево) */
+        /* Позиция дома у обочины дороги */
+        .house-position {
+            top: 1900px;
+            left: 2000px;
+            width: 160px;
+            height: 140px;
+            z-index: 10;
+        }
+
+        /* --- ОБЪЁМНЫЙ ДОМ --- */
+        .farm-house {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
         .house-body {
             position: absolute;
             bottom: 0;
-            left: 14px;
-            width: 100px;
-            height: 65px;
-            background: linear-gradient(#e0c090, #c8a070);
-            border: 3px solid #5c4033;
-            border-radius: 4px;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            left: 10px;
+            width: 90px;
+            height: 70px;
+            background: linear-gradient(to bottom, #d9a05b, #b37d42);
+            border: 3px solid #3d2516;
+            box-shadow: -5px 10px 20px rgba(0,0,0,0.3);
+            z-index: 4;
         }
 
-        /* Красная фермерская крыша */
-        .house-roof {
+        .house-side {
             position: absolute;
-            top: 15px;
-            left: 4px;
-            width: 120px;
-            height: 40px;
-            background: linear-gradient(135deg, #cc3333, #991111);
-            border: 3px solid #5c4033;
-            clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
+            bottom: 0;
+            left: 97px;
+            width: 50px;
+            height: 70px;
+            background: linear-gradient(to bottom, #b37d42, #885c2b);
+            border: 3px solid #3d2516;
+            border-left: none;
+            transform: skewY(-15deg);
+            transform-origin: top left;
+            z-index: 3;
         }
 
-        /* Чердачное круглое окошко */
+        .house-roof-front {
+            position: absolute;
+            top: 30px;
+            left: 0;
+            width: 110px;
+            height: 43px;
+            background: linear-gradient(135deg, #e63946, #b71c1c);
+            border: 3px solid #3d2516;
+            clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
+            z-index: 6;
+        }
+
+        .house-roof-side {
+            position: absolute;
+            top: 30px;
+            left: 102px;
+            width: 54px;
+            height: 43px;
+            background: linear-gradient(to bottom, #b71c1c, #7f1010);
+            border: 3px solid #3d2516;
+            border-left: none;
+            clip-path: polygon(0% 0%, 100% 34%, 100% 100%, 0% 100%);
+            transform: skewY(-15deg);
+            transform-origin: top left;
+            z-index: 5;
+        }
+
         .roof-window {
             position: absolute;
-            top: 22px;
-            left: 54px;
-            width: 20px;
-            height: 20px;
-            background: #90caf9;
-            border: 2px solid #5c4033;
+            top: 20px;
+            left: 44px;
+            width: 22px;
+            height: 22px;
+            background: #a2d2ff;
+            border: 2.5px solid #3d2516;
             border-radius: 50%;
+            z-index: 7;
         }
 
-        /* Крыльцо и белая дверь по центру, смотрящая на дорогу */
         .house-door {
             position: absolute;
             bottom: 0;
-            left: 48px;
+            left: 32px;
             width: 24px;
-            height: 38px;
-            background: #fff;
-            border: 2px solid #5c4033;
+            height: 40px;
+            background: #fdfefe;
+            border: 2.5px solid #3d2516;
             border-bottom: none;
             border-radius: 4px 4px 0 0;
         }
 
-        /* Окна на первом этаже */
-        .house-window {
+        .house-window-front {
             position: absolute;
-            bottom: 20px;
+            bottom: 22px;
+            left: 64px;
             width: 18px;
             height: 18px;
-            background: #90caf9;
-            border: 2px solid #5c4033;
+            background: #a2d2ff;
+            border: 2.5px solid #3d2516;
             border-radius: 3px;
         }
-        .win-left { left: 20px; }
-        .win-right { right: 20px; }
 
-        /* Труба на крыше */
         .house-chimney {
             position: absolute;
-            top: 10px;
-            right: 25px;
-            width: 12px;
-            height: 25px;
-            background: #737373;
-            border: 2px solid #5c4033;
+            top: 12px;
+            left: 85px;
+            width: 14px;
+            height: 32px;
+            background: linear-gradient(90deg, #7b7b7b, #535353);
+            border: 2.5px solid #3d2516;
+            z-index: 2;
         }
     </style>
 </head>
 <body>
 
     <div id="viewport">
-        <div id="game-map">
-            
-            <!-- Дорога вниз -->
-            <div class="dirt-road"></div>
+        <div id="camera-pan">
+            <div id="camera-zoom">
+                <div id="game-map">
+                    
+                    <!-- Дорога в плоскости 3D поля -->
+                    <div class="dirt-road"></div>
 
-            <!-- Фермерский дом -->
-            <div class="farm-house">
-                <div class="house-chimney"></div>
-                <div class="house-roof"></div>
-                <div class="roof-window"></div>
-                <div class="house-body">
-                    <div class="house-window win-left"></div>
-                    <div class="house-door"></div>
-                    <div class="house-window win-right"></div>
+                    <!-- Объёмный 3D дом -->
+                    <div class="iso-object house-position">
+                        <div class="farm-house">
+                            <div class="house-chimney"></div>
+                            <div class="house-roof-front"></div>
+                            <div class="house-roof-side"></div>
+                            <div class="roof-window"></div>
+                            <div class="house-body">
+                                <div class="house-door"></div>
+                                <div class="house-window-front"></div>
+                            </div>
+                            <div class="house-side"></div>
+                        </div>
+                    </div>
+
                 </div>
             </div>
-
         </div>
     </div>
 
     <script>
-        const viewport = document.getElementById('viewport');
-        const map = document.getElementById('game-map');
+        const panContainer = document.getElementById('camera-pan');
+        const zoomContainer = document.getElementById('camera-zoom');
+
+        // Стартовая позиция (дом в центре экрана)
+        let currentX = 0, currentY = -100; 
+        let currentZoom = 0.8;
+
+        const MIN_ZOOM = 0.4;
+        const MAX_ZOOM = 2.0;
 
         let isDragging = false;
         let startX = 0, startY = 0;
-        // Стартовое смещение, чтобы дом оказался ровно по центру экрана мобильного
-        let currentX = -(1600 - window.innerWidth / 2);
-        let currentY = -(1600 - window.innerHeight / 2);
+        let startPinchDist = 0;
+        let startZoom = 1.0;
 
-        // Установка начальной позиции
-        map.style.transform = `translate3d(${currentX}px, ${currentY}px, 0)`;
+        function applyTransforms() {
+            panContainer.style.transform = `translate3d(${currentX}px, ${currentY}px, 0)`;
+            zoomContainer.style.transform = `scale(${currentZoom})`;
+        }
 
-        viewport.addEventListener('touchstart', (e) => {
-            isDragging = true;
-            startX = e.touches.clientX - currentX;
-            startY = e.touches.clientY - currentY;
+        // ПРАВИЛЬНАЯ функция подсчета расстояния между пальцами
+        function getPinchDistance(e) {
+            if (e.touches.length < 2) return 0;
+            const t1 = e.touches[0];
+            const t2 = e.touches[1];
+            const dx = t1.clientX - t2.clientX;
+            const dy = t1.clientY - t2.clientY;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+
+        window.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) {
+                isDragging = true;
+                startX = e.touches[0].clientX - currentX;
+                startY = e.touches[0].clientY - currentY;
+            } else if (e.touches.length === 2) {
+                isDragging = false;
+                startPinchDist = getPinchDistance(e);
+                startZoom = currentZoom;
+            }
         }, { passive: true });
 
-        viewport.addEventListener('touchmove', (e) => {
-            if (!isDragging) return;
-
-            currentX = e.touches.clientX - startX;
-            currentY = e.touches.clientY - startY;
-
-            // Границы, чтобы не выходить за пределы поля 100х100
-            const minX = viewport.clientWidth - 3200;
-            const minY = viewport.clientHeight - 3200;
-
-            currentX = Math.min(0, Math.max(currentX, minX));
-            currentY = Math.min(0, Math.max(currentY, minY));
-
-            map.style.transform = `translate3d(${currentX}px, ${currentY}px, 0)`;
+        window.addEventListener('touchmove', (e) => {
+            if (isDragging && e.touches.length === 1) {
+                currentX = e.touches[0].clientX - startX;
+                currentY = e.touches[0].clientY - startY;
+                
+                // Рамки, чтобы не перетаскивать карту в бесконечную пустоту
+                currentX = Math.min(1200, Math.max(currentX, -1200));
+                currentY = Math.min(1200, Math.max(currentY, -1200));
+                
+                applyTransforms();
+            } else if (e.touches.length === 2) {
+                const currentDist = getPinchDistance(e);
+                if (startPinchDist > 0 && currentDist > 0) {
+                    const factor = currentDist / startPinchDist;
+                    currentZoom = startZoom * factor;
+                    currentZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, currentZoom));
+                    applyTransforms();
+                }
+            }
         }, { passive: true });
 
-        viewport.addEventListener('touchend', () => {
-            isDragging = false;
+        window.addEventListener('touchend', (e) => {
+            if (e.touches.length === 0) {
+                isDragging = false;
+            } else if (e.touches.length === 1) {
+                isDragging = true;
+                startX = e.touches[0].clientX - currentX;
+                startY = e.touches[0].clientY - currentY;
+            }
         });
 
-        // Коррекция центра при повороте экрана смартфона
-        window.addEventListener('resize', () => {
-            const minX = viewport.clientWidth - 3200;
-            const minY = viewport.clientHeight - 3200;
-            currentX = Math.min(0, Math.max(currentX, minX));
-            currentY = Math.min(0, Math.max(currentY, minY));
-            map.style.transform = `translate3d(${currentX}px, ${currentY}px, 0)`;
-        });
+        applyTransforms();
     </script>
 </body>
 </html>
