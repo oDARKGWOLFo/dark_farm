@@ -78,6 +78,7 @@ async def process_start_mining(callback_query: types.CallbackQuery):
     await callback_query.answer()
     asyncio.create_task(run_auto_mining(user_id))
 EOF
+    
 cat << 'EOF' >> main_bot.py
 
 @dp.callback_query(lambda c: c.data == "stop_mining")
